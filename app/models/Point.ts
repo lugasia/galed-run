@@ -10,26 +10,26 @@ const PointSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  coordinates: {
+  location: {
     type: [Number],
     required: true,
     validate: {
       validator: (v: number[]) => v.length === 2,
-      message: 'Coordinates must be [latitude, longitude]'
+      message: 'Location must be [latitude, longitude]'
     }
   },
   question: {
     text: {
       type: String,
-      required: true,
+      default: '',
     },
     options: {
       type: [String],
-      default: [],
+      default: ['', '', '', ''],
     },
     correctAnswer: {
       type: String,
-      required: true,
+      default: '',
     }
   }
 }, {

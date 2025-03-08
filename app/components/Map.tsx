@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import type { Point, Team } from '../types';
+import dynamic from 'next/dynamic';
 
-// Fix for Leaflet marker icons in Next.js
-const icon = L.icon({
+// Create custom icon for points
+const pointIcon = L.icon({
   iconUrl: '/images/marker-icon.png',
   iconRetinaUrl: '/images/marker-icon-2x.png',
   shadowUrl: '/images/marker-shadow.png',
@@ -17,33 +17,50 @@ const icon = L.icon({
   shadowSize: [41, 41]
 });
 
+// Array of colors for teams
+const teamColors = [
+  '#FF6B6B', // Red
+  '#4ECDC4', // Teal
+  '#45B7D1', // Blue
+  '#96CEB4', // Green
+  '#FFEEAD', // Yellow
+  '#D4A5A5', // Pink
+  '#9B59B6', // Purple
+  '#3498DB', // Light Blue
+  '#E67E22', // Orange
+  '#2ECC71', // Emerald
+];
+
 interface MapProps {
   points: Point[];
   teams?: Team[];
-  onPointClick?: (point: Point) => void;
-  isEditable?: boolean;
+  center: [number, number];
+  zoom: number;
 }
 
-const MapComponent = ({ points, teams, onPointClick, isEditable = false }: MapProps) => {
-  const mapRef = useRef<L.Map | null>(null);
-
+const MapComponent = ({ points, teams = [], center, zoom }: MapProps) => {
   useEffect(() => {
-    // Download marker icons
+    // Load Leaflet CSS
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = 'https://unpkg.com/leaflet@1.7.1/dist/leaflet.css';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
+    link.crossOrigin = '';
     document.head.appendChild(link);
+
+    return () => {
+      if (link.parentNode) {
+        link.parentNode.removeChild(link);
+      }
+    };
   }, []);
 
-  const center: [number, number] = [32.5587, 35.0767]; // Default center (first point)
-
   return (
-    <div className="w-full h-[600px] relative">
+    <div className="w-full h-full relative">
       <MapContainer
         center={center}
-        zoom={15}
+        zoom={zoom}
         style={{ height: '100%', width: '100%' }}
-        ref={mapRef}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -51,42 +68,46 @@ const MapComponent = ({ points, teams, onPointClick, isEditable = false }: MapPr
         />
         
         {points.map((point) => (
-          <Marker
-            key={point._id}
-            position={point.coordinates}
-            icon={icon}
-            eventHandlers={{
-              click: () => onPointClick && onPointClick(point),
-            }}
-          >
-            <Popup>
-              <div>
-                <h3 className="font-bold">{point.name}</h3>
-                <p className="text-sm">קוד: {point.code}</p>
-              </div>
-            </Popup>
-          </Marker>
+          point.location && (
+            <Marker
+              key={point._id}
+              position={point.location}
+              icon={pointIcon}
+            >
+              <Popup>
+                <div>
+                  <h3 className="font-bold">{point.name}</h3>
+                  <p className="text-sm">קוד: {point.code}</p>
+                </div>
+              </Popup>
+            </Marker>
+          )
         ))}
 
-        {teams?.map((team) => (
-          team.currentLocation && (
-            <Marker
+        {teams.map((team, index) => (
+          team.currentLocation?.coordinates && (
+            <CircleMarker
               key={team._id}
-              position={team.currentLocation.coordinates}
-              icon={L.divIcon({
-                className: 'bg-blue-500 rounded-full w-4 h-4 border-2 border-white',
-                iconSize: [16, 16],
-              })}
+              center={team.currentLocation.coordinates}
+              radius={8}
+              fillColor={teamColors[index % teamColors.length]}
+              color="#fff"
+              weight={2}
+              opacity={1}
+              fillOpacity={0.8}
             >
               <Popup>
                 <div>
                   <h3 className="font-bold">{team.name}</h3>
-                  <p className="text-sm">
-                    עדכון אחרון: {new Date(team.currentLocation.timestamp).toLocaleString()}
-                  </p>
+                  <p className="text-sm">מוביל: {team.leaderName}</p>
+                  {team.currentLocation?.timestamp && (
+                    <p className="text-xs text-gray-500">
+                      עדכון אחרון: {new Date(team.currentLocation.timestamp).toLocaleTimeString()}
+                    </p>
+                  )}
                 </div>
               </Popup>
-            </Marker>
+            </CircleMarker>
           )
         ))}
       </MapContainer>
@@ -94,4 +115,16 @@ const MapComponent = ({ points, teams, onPointClick, isEditable = false }: MapPr
   );
 };
 
-export default MapComponent; 
+const Map = dynamic(
+  () => Promise.resolve(MapComponent),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full flex items-center justify-center bg-gray-100">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
+  }
+);
+
+export default Map;

@@ -12,8 +12,15 @@ async function dbConnect() {
       return;
     }
 
-    return await mongoose.connect(MONGODB_URI);
+    console.log('Connecting to MongoDB...');
+    const connection = await mongoose.connect(MONGODB_URI, {
+      maxPoolSize: 10,
+    });
+    
+    console.log('MongoDB Connected successfully');
+    return connection;
   } catch (error) {
+    console.error('MongoDB connection error:', error);
     throw new Error('Failed to connect to MongoDB');
   }
 }

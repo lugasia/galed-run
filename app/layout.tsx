@@ -5,8 +5,8 @@ import { Inter } from 'next/font/google'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: 'Galed Run - Navigation Race Game',
-  description: 'A navigation race game application for Kibbutz Galed',
+  title: 'ניווט גלעד',
+  description: 'משחק ניווט בקיבוץ גלעד',
 }
 
 export default function RootLayout({
@@ -17,9 +17,9 @@ export default function RootLayout({
   return (
     <html lang="he" dir="rtl">
       <body className={inter.className}>
-        <main className="min-h-screen bg-gray-100">
+        <div className="flex flex-col min-h-screen bg-gray-100">
           {children}
-        </main>
+        </div>
       </body>
     </html>
   )

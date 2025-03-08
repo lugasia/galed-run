@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../lib/mongodb';
-import mongoose from 'mongoose';
+import dbConnect from '../../lib/mongodb';
+import mongoose, { Model } from 'mongoose';
+import type { Point as IPoint } from '../../types';
 
 const PointSchema = new mongoose.Schema({
   name: {
@@ -12,12 +13,12 @@ const PointSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  coordinates: {
+  location: {
     type: [Number],
     required: true,
     validate: {
       validator: (v: number[]) => v.length === 2,
-      message: 'Coordinates must be [latitude, longitude]'
+      message: 'Location must be [latitude, longitude]'
     }
   },
   question: {
@@ -27,7 +28,7 @@ const PointSchema = new mongoose.Schema({
     },
     options: {
       type: [String],
-      default: [],
+      required: true,
     },
     correctAnswer: {
       type: String,
@@ -38,7 +39,7 @@ const PointSchema = new mongoose.Schema({
   timestamps: true
 });
 
-const Point = mongoose.models.Point || mongoose.model('Point', PointSchema);
+const Point = (mongoose.models.Point as Model<IPoint>) || mongoose.model<IPoint>('Point', PointSchema);
 
 export async function GET() {
   try {
@@ -54,11 +55,19 @@ export async function POST(request: Request) {
   try {
     await dbConnect();
     const data = await request.json();
-    
+
+    // Handle bulk creation if points array is provided
+    if (Array.isArray(data.points)) {
+      const points = await Point.create(data.points);
+      return NextResponse.json(points);
+    }
+
+    // Handle single point creation
     const point = await Point.create(data);
     return NextResponse.json(point);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to create point' }, { status: 500 });
+    console.error('Error creating point(s):', error);
+    return NextResponse.json({ error: 'Failed to create point(s)', details: error.message }, { status: 500 });
   }
 }
 
@@ -79,23 +88,12 @@ export async function PUT(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE() {
   try {
     await dbConnect();
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    
-    if (!id) {
-      return NextResponse.json({ error: 'Point ID is required' }, { status: 400 });
-    }
-    
-    const point = await Point.findByIdAndDelete(id);
-    if (!point) {
-      return NextResponse.json({ error: 'Point not found' }, { status: 404 });
-    }
-    
-    return NextResponse.json({ message: 'Point deleted successfully' });
+    await Point.deleteMany({});
+    return NextResponse.json({ message: 'All points deleted successfully' });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to delete point' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to delete points' }, { status: 500 });
   }
 } 
