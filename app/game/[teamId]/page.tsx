@@ -184,7 +184,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [penaltyEndTime, team]);
+  }, [penaltyEndTime, team, setShowQuestion, setMessage, setCurrentHintLevel, setPenaltyTimeLeft, setPenaltyEndTime]);
 
   const fetchTeam = async () => {
     try {
@@ -289,7 +289,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     // בשאר הנקודות המשתמש צריך ללחוץ על כפתור "הגעתי" כדי לראות את השאלה
     if (team.currentPointIndex === 0) {
       setShowQuestion(true);
-    } else {
+    } else if (!team.penaltyEndTime) { // Only reset showQuestion if not in penalty
       setShowQuestion(false);
     }
     
