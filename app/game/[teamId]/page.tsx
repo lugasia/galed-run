@@ -91,6 +91,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   const [currentHintLevel, setCurrentHintLevel] = useState(0); // 0 = אין רמז, 1 = זום אאוט, 2 = שם התחנה
   const [showPointImage, setShowPointImage] = useState(false);
   const [completedPoints, setCompletedPoints] = useState<Point[]>([]);
+  const [disabledOptions, setDisabledOptions] = useState<string[]>([]);
+  const [gameCompleted, setGameCompleted] = useState(false);
 
   useEffect(() => {
     fetchTeam();
@@ -168,7 +170,12 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           
           // When penalty ends, show the zoom out image (hint level 1)
           setCurrentHintLevel(1);
-          setMessage('רוץ לנקודה הבאה');
+          
+          // אם זה הניסיון השלישי (אחרי עונשין שני), הצג הודעה לרוץ לנקודה הבאה
+          if (team?.attempts >= 3) {
+            setMessage('רוץ לנקודה הבאה');
+            setShowQuestion(false); // הסתר את השאלה
+          }
           
           clearInterval(interval);
         } else {
@@ -332,15 +339,30 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
       if (data.correct) {
         // תשובה נכונה
-        setMessage('צדקת! רוץ לנקודה הבאה');
+        if (data.isLastPoint) {
+          setGameCompleted(true);
+          setMessage('כל הכבוד! סיימתם את המסלול');
+        } else {
+          const nextPointName = data.nextPoint?.name || 'הבאה';
+          setMessage(`צדקת! רוץ לנקודה "${nextPointName}"`);
+        }
+        
         setSelectedAnswer('');
         setCurrentHintLevel(0); // איפוס רמת הרמז
+        setShowQuestion(false); // הסתר את השאלה אחרי תשובה נכונה
+        setDisabledOptions([]); // איפוס האפשרויות החסומות
         
         // רענן את נתוני הקבוצה
         await fetchTeam();
       } else {
         // תשובה שגויה
         setMessage('טעית, נסה שוב');
+        
+        // הוסף את התשובה השגויה לרשימת האפשרויות החסומות אם זה הניסיון השני
+        if (data.attempts >= 2) {
+          setDisabledOptions(prev => [...prev, selectedAnswer]);
+        }
+        
         setSelectedAnswer('');
         
         // בדוק אם התקבל רמז אוטומטי מהשרת
@@ -360,6 +382,11 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       console.error('Error submitting answer:', error);
       setMessage('שגיאה בשליחת התשובה');
     }
+  };
+
+  const handleRevealQuestion = () => {
+    setShowQuestion(true);
+    setMessage(null);
   };
 
   const getCurrentPoint = () => {
@@ -451,7 +478,10 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   const currentPoint = team && points.length > 0 ? points[team.currentPointIndex] : null;
   
   // Check if the route is completed
-  const isRouteCompleted = team?.currentPointIndex >= points.length;
+  const isRouteCompleted = team?.currentPointIndex >= points.length || gameCompleted;
+  
+  // Check if the current point is the finish point (point with code 1011)
+  const isFinishPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
   
   if (isRouteCompleted) {
     return (
@@ -467,6 +497,25 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             <p className="text-gray-600 mb-2">כל הכבוד!</p>
             <div className="text-xl font-bold">
               זמן סופי: {formatTime(elapsedTime)}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if team has not started yet
+  const teamNotStarted = team && !team.startTime;
+  
+  if (teamNotStarted) {
+    return (
+      <div className="flex flex-col h-screen">
+        <div className="flex-1 flex items-center justify-center p-2">
+          <div className="text-center max-w-md w-full bg-white rounded-lg shadow-lg p-4">
+            <h1 className="text-2xl font-bold mb-2">ממתין להזנקה</h1>
+            <p className="text-gray-600 mb-2">המתינו לאישור האדמין להתחלת המשחק</p>
+            <div className="animate-pulse mt-4">
+              <div className="h-10 bg-blue-100 rounded-full w-full"></div>
             </div>
           </div>
         </div>
@@ -550,7 +599,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
               )}
               
               {/* שאלה */}
-              {showQuestion && (
+              {showQuestion ? (
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -578,10 +627,12 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                     {currentPoint.question.options.map((option, index) => (
                       <label 
                         key={index} 
-                        className={`flex items-center px-2 py-1.5 rounded transition-all cursor-pointer text-sm
-                          ${selectedAnswer === option 
-                            ? 'bg-blue-50 border border-blue-500' 
-                            : 'bg-gray-50 hover:bg-gray-100 border border-transparent'}`}
+                        className={`flex items-center px-2 py-1.5 rounded transition-all text-sm
+                          ${disabledOptions.includes(option) 
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50' 
+                            : selectedAnswer === option 
+                              ? 'bg-blue-50 border border-blue-500' 
+                              : 'bg-gray-50 hover:bg-gray-100 border border-transparent cursor-pointer'}`}
                       >
                         <input
                           type="radio"
@@ -589,6 +640,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                           value={option}
                           checked={selectedAnswer === option}
                           onChange={(e) => setSelectedAnswer(e.target.value)}
+                          disabled={disabledOptions.includes(option)}
                           className="w-3 h-3 text-blue-600 mr-2"
                         />
                         <span>{option}</span>
@@ -602,7 +654,29 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                       disabled:from-gray-400 disabled:to-gray-500 disabled:opacity-60 
                       transition-all transform hover:scale-[1.02] active:scale-[0.98]"
                   >
-                    {isLastPoint ? 'סיים מסלול' : 'שלח'}
+                    {isFinishPoint ? 'סיים מסלול' : 'שלח'}
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-white rounded-lg shadow-lg p-4 text-center"
+                >
+                  <h2 className="text-xl font-bold mb-2">
+                    {isFinishPoint ? 'הגעתם לנקודת הסיום!' : 'הגעתם לנקודה הבאה?'}
+                  </h2>
+                  <p className="text-gray-600 mb-3">
+                    {isFinishPoint 
+                      ? 'לחצו על הכפתור לסיום המשחק' 
+                      : 'לחצו על הכפתור כדי לחשוף את השאלה'}
+                  </p>
+                  <button
+                    onClick={handleRevealQuestion}
+                    className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg font-medium
+                      transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    {isFinishPoint ? 'סיים משחק' : 'הגעתי! חשוף שאלה'}
                   </button>
                 </motion.div>
               )}

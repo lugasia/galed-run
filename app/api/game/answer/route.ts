@@ -292,7 +292,8 @@ export async function POST(request: Request) {
         message: 'צדקת! רוץ לנקודה הבאה',
         nextPoint: {
           name: nextPoint.name,
-          code: nextPoint.code
+          code: nextPoint.code,
+          isFinishPoint: nextPoint.isFinishPoint || nextPoint.code === '1011'
         }
       });
     }
