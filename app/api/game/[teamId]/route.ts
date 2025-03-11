@@ -64,7 +64,9 @@ export async function GET(
         console.log('Extracted teamId from URL:', searchId);
       }
       
-      // First try to find by exact uniqueLink match
+      // Try multiple search strategies
+      
+      // 1. First try to find by exact uniqueLink match
       team = await (Team as Model<ITeam>).findOne({
         uniqueLink: params.teamId
       }).populate({
@@ -75,7 +77,21 @@ export async function GET(
         }
       });
       
-      // If not found, try to find by uniqueLink that ends with the teamId
+      // 2. If not found, try to find by extracted searchId
+      if (!team && searchId !== params.teamId) {
+        console.log('Trying with extracted searchId:', searchId);
+        team = await (Team as Model<ITeam>).findOne({
+          uniqueLink: searchId
+        }).populate({
+          path: 'currentRoute',
+          populate: {
+            path: 'points',
+            model: 'Point'
+          }
+        });
+      }
+      
+      // 3. If not found, try to find by uniqueLink that ends with the teamId
       if (!team) {
         console.log('Team not found by exact uniqueLink, trying to find by URL ending with teamId...');
         team = await (Team as Model<ITeam>).findOne({
@@ -89,10 +105,38 @@ export async function GET(
         });
       }
       
+      // 4. If not found, try to find by uniqueLink that contains the teamId
+      if (!team) {
+        console.log('Trying to find by uniqueLink containing teamId...');
+        team = await (Team as Model<ITeam>).findOne({
+          uniqueLink: { $regex: searchId, $options: 'i' }
+        }).populate({
+          path: 'currentRoute',
+          populate: {
+            path: 'points',
+            model: 'Point'
+          }
+        });
+      }
+      
+      // 5. Last resort: try to find any team with this name
+      if (!team) {
+        console.log('Trying to find by team name...');
+        team = await (Team as Model<ITeam>).findOne({
+          name: { $regex: searchId, $options: 'i' }
+        }).populate({
+          path: 'currentRoute',
+          populate: {
+            path: 'points',
+            model: 'Point'
+          }
+        });
+      }
+      
       if (team) {
-        console.log('Team found by uniqueLink');
+        console.log('Team found by uniqueLink or name');
       } else {
-        console.log('Team not found by uniqueLink either');
+        console.log('Team not found by any method');
       }
     }
 

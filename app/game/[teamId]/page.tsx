@@ -169,8 +169,25 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   const fetchTeam = async () => {
     try {
       const response = await fetch(`/api/game/${params.teamId}`);
-      if (!response.ok) throw new Error('Failed to fetch team data');
+      if (!response.ok) {
+        console.error('Error response from server:', response.status, response.statusText);
+        if (response.status === 404) {
+          setMessage('קבוצה לא נמצאה. בדוק את הקישור שהזנת.');
+        } else {
+          setMessage('שגיאה בטעינת נתוני הקבוצה');
+        }
+        setLoading(false);
+        return;
+      }
+      
       const data = await response.json();
+      
+      if (!data.team) {
+        console.error('No team data in response');
+        setMessage('קבוצה לא נמצאה. בדוק את הקישור שהזנת.');
+        setLoading(false);
+        return;
+      }
       
       setTeam(data.team);
       if (data.team?.currentRoute?.points) {
@@ -211,7 +228,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       setLoading(false);
     } catch (error) {
       console.error('Error fetching team:', error);
-      setMessage('שגיאה בטעינת נתוני הקבוצה');
+      setMessage('שגיאה בטעינת נתוני הקבוצה. נסה לרענן את העמוד.');
       setLoading(false);
     }
   };
@@ -301,9 +318,20 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   if (!team) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
+        <div className="text-center max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
           <h1 className="text-2xl font-bold mb-4">קבוצה לא נמצאה</h1>
-          <p className="text-gray-600">הקישור שהזנת אינו תקין</p>
+          <p className="text-gray-600 mb-4">הקישור שהזנת אינו תקין</p>
+          {message && (
+            <div className="bg-red-50 border-r-4 border-red-500 p-3 rounded-lg text-red-800 text-sm mb-4">
+              {message}
+            </div>
+          )}
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg text-sm font-medium"
+          >
+            נסה שוב
+          </button>
         </div>
       </div>
     );
