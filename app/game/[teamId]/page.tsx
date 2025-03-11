@@ -7,6 +7,13 @@ import GpsRequired from '../../components/GpsRequired';
 import { Point as GamePoint, Team as GameTeam } from '../../types';
 import { motion } from 'framer-motion';
 
+// הוספת הצהרת טיפוס לחלון
+declare global {
+  interface Window {
+    debugInfo: any;
+  }
+}
+
 const Map = dynamic(() => import('../../components/MapComponent'), { 
   ssr: false,
   loading: () => (
@@ -171,16 +178,33 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       const response = await fetch(`/api/game/${params.teamId}`);
       if (!response.ok) {
         console.error('Error response from server:', response.status, response.statusText);
-        if (response.status === 404) {
+        
+        // נסה לקרוא את הודעת השגיאה מהשרת
+        try {
+          const errorData = await response.json();
+          console.error('Error data:', errorData);
+          setMessage(errorData.message || 'קבוצה לא נמצאה. בדוק את הקישור שהזנת.');
+          
+          // שמור את המידע הדיאגנוסטי
+          if (errorData.debug) {
+            console.log('Debug info:', errorData.debug);
+            window.debugInfo = errorData.debug;
+          }
+        } catch (parseError) {
           setMessage('קבוצה לא נמצאה. בדוק את הקישור שהזנת.');
-        } else {
-          setMessage('שגיאה בטעינת נתוני הקבוצה');
         }
+        
         setLoading(false);
         return;
       }
       
       const data = await response.json();
+      
+      // שמור את המידע הדיאגנוסטי
+      if (data.debug) {
+        console.log('Debug info:', data.debug);
+        window.debugInfo = data.debug;
+      }
       
       if (!data.team) {
         console.error('No team data in response');
@@ -315,9 +339,20 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     );
   }
 
+  // הוספת מידע דיאגנוסטי
+  const debugInfo = {
+    teamId: params.teamId,
+    teamFound: !!team,
+    hasRoute: team && !!team.currentRoute,
+    hasPoints: team && team.currentRoute && team.currentRoute.points && team.currentRoute.points.length > 0,
+    startTime: team?.startTime ? new Date(team.startTime).toISOString() : null,
+    currentPointIndex: team?.currentPointIndex,
+    visitedPoints: team?.visitedPoints?.length || 0,
+  };
+
   if (!team) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex flex-col items-center justify-center h-screen">
         <div className="text-center max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
           <h1 className="text-2xl font-bold mb-4">קבוצה לא נמצאה</h1>
           <p className="text-gray-600 mb-4">הקישור שהזנת אינו תקין</p>
@@ -328,10 +363,16 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           )}
           <button
             onClick={() => window.location.reload()}
-            className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg text-sm font-medium"
+            className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg text-sm font-medium mb-4"
           >
             נסה שוב
           </button>
+          
+          {/* מידע דיאגנוסטי */}
+          <div className="mt-6 text-left text-xs bg-gray-100 p-3 rounded-lg overflow-auto max-h-60">
+            <h3 className="font-bold mb-2">מידע דיאגנוסטי:</h3>
+            <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+          </div>
         </div>
       </div>
     );
