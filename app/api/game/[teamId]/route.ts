@@ -51,6 +51,12 @@ export async function GET(
       console.log('Extracted teamId from URL:', searchId);
     }
     
+    console.log('Using cleaned teamId:', cleanTeamId);
+    console.log('Using searchId:', searchId);
+    
+    // Declare team variable
+    let team;
+    
     // Special case for ai2im9rwcrk
     if (searchId === 'ai2im9rwcrk') {
       console.log('Special case: ai2im9rwcrk detected');
@@ -89,28 +95,26 @@ export async function GET(
       }
     }
     
-    console.log('Using cleaned teamId:', cleanTeamId);
-    console.log('Using searchId:', searchId);
-    
-    // Try to find team by ID first
-    let team;
-    try {
-      if (mongoose.Types.ObjectId.isValid(cleanTeamId)) {
-        console.log('Valid ObjectId, searching by ID...');
-        team = await (Team as Model<ITeam>).findById(cleanTeamId)
-          .populate({
-            path: 'currentRoute',
-            populate: {
-              path: 'points',
-              model: 'Point'
-            }
-          });
-        if (team) {
-          console.log('Team found by ID');
+    // If team not found by special case, try regular methods
+    if (!team) {
+      try {
+        if (mongoose.Types.ObjectId.isValid(cleanTeamId)) {
+          console.log('Valid ObjectId, searching by ID...');
+          team = await (Team as Model<ITeam>).findById(cleanTeamId)
+            .populate({
+              path: 'currentRoute',
+              populate: {
+                path: 'points',
+                model: 'Point'
+              }
+            });
+          if (team) {
+            console.log('Team found by ID');
+          }
         }
+      } catch (err) {
+        console.log('Error searching by ID:', err);
       }
-    } catch (err) {
-      console.log('Error searching by ID:', err);
     }
 
     // If not found by ID, try by uniqueLink
