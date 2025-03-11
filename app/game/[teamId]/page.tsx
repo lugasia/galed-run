@@ -30,6 +30,12 @@ interface Point extends GamePoint {
   };
   isAdvanced?: boolean;
   isFinishPoint?: boolean;
+  question: {
+    text: string;
+    options: string[];
+    correctAnswer: string;
+    image?: string;
+  };
 }
 
 interface Team {
