@@ -308,8 +308,24 @@ export async function POST(request: Request) {
         // Use the updated team's currentPointIndex
         const nextPointIndex = updatedTeam.currentPointIndex;
         console.log('Next point index:', nextPointIndex);
+        console.log('Route points length:', updatedTeam.currentRoute?.points?.length || 0);
+        console.log('Team data:', {
+          id: updatedTeam._id,
+          name: updatedTeam.name,
+          currentPointIndex: updatedTeam.currentPointIndex,
+          routeId: updatedTeam.currentRoute?._id,
+          routeName: updatedTeam.currentRoute?.name
+        });
         
         // Make sure the next point exists
+        if (!updatedTeam.currentRoute || !updatedTeam.currentRoute.points) {
+          console.error('Team has no route or points array is missing');
+          return NextResponse.json({ 
+            correct: true,
+            message: 'צדקת! רוץ לנקודה הבאה'
+          });
+        }
+        
         if (nextPointIndex >= updatedTeam.currentRoute.points.length) {
           console.error('Next point index out of bounds:', nextPointIndex, 'points length:', updatedTeam.currentRoute.points.length);
           return NextResponse.json({ 
@@ -319,7 +335,11 @@ export async function POST(request: Request) {
         }
         
         const nextPoint = updatedTeam.currentRoute.points[nextPointIndex];
-        console.log('Next point:', nextPoint ? nextPoint.name : 'undefined');
+        console.log('Next point:', nextPoint ? {
+          id: nextPoint._id,
+          name: nextPoint.name,
+          code: nextPoint.code
+        } : 'undefined');
         
         if (!nextPoint) {
           console.error('Next point is undefined');
