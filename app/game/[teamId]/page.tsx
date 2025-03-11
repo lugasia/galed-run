@@ -289,7 +289,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     // בשאר הנקודות המשתמש צריך ללחוץ על כפתור "הגעתי" כדי לראות את השאלה
     if (team.currentPointIndex === 0) {
       setShowQuestion(true);
-    } else if (!team.penaltyEndTime) { // Only reset showQuestion if not in penalty
+    } else if (!team.penaltyEndTime && !showQuestion) { // Only reset if not in penalty and not already showing
       setShowQuestion(false);
     }
     
