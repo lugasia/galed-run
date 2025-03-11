@@ -146,7 +146,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   }, [team?.uniqueLink]);
 
   useEffect(() => {
-    if (team?.startTime) {
+    if (team?.startTime && !gameCompleted) {
       const interval = setInterval(() => {
         const now = new Date().getTime();
         const start = new Date(team.startTime).getTime();
@@ -154,7 +154,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }, 1000); // Update every second since we don't need milliseconds anymore
       return () => clearInterval(interval);
     }
-  }, [team?.startTime]);
+  }, [team?.startTime, gameCompleted]);
 
   useEffect(() => {
     if (penaltyEndTime) {
@@ -285,9 +285,11 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }
     }
     
+    // אל תציג את השאלה אוטומטית - המשתמש צריך ללחוץ על כפתור "הגעתי"
     // Show question only if the team has started
     if (team?.startTime) {
-      setShowQuestion(true);
+      // אל תשנה את מצב showQuestion כאן - זה יקרה רק בלחיצה על כפתור
+      // setShowQuestion(true);
     } else {
       setShowQuestion(false);
     }
@@ -342,6 +344,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         if (data.isLastPoint) {
           setGameCompleted(true);
           setMessage('כל הכבוד! סיימתם את המסלול');
+          // עצור את השעון
+          const finalTime = elapsedTime;
+          setElapsedTime(finalTime);
         } else {
           const nextPointName = data.nextPoint?.name || 'הבאה';
           setMessage(`צדקת! רוץ לנקודה "${nextPointName}"`);
@@ -358,10 +363,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         // תשובה שגויה
         setMessage('טעית, נסה שוב');
         
-        // הוסף את התשובה השגויה לרשימת האפשרויות החסומות אם זה הניסיון השני
-        if (data.attempts >= 2) {
-          setDisabledOptions(prev => [...prev, selectedAnswer]);
-        }
+        // הוסף את התשובה השגויה לרשימת האפשרויות החסומות
+        setDisabledOptions(prev => [...prev, selectedAnswer]);
         
         setSelectedAnswer('');
         
@@ -387,6 +390,15 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   const handleRevealQuestion = () => {
     setShowQuestion(true);
     setMessage(null);
+    
+    // אם זו נקודת סיום, נעדכן את המצב בהתאם
+    if (isFinishPoint) {
+      setGameCompleted(true);
+      setMessage('כל הכבוד! סיימתם את המסלול');
+      // עצור את השעון
+      const finalTime = elapsedTime;
+      setElapsedTime(finalTime);
+    }
   };
 
   const getCurrentPoint = () => {
