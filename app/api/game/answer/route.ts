@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     await dbConnect();
     const { teamId, pointId, answer } = await request.json();
 
-    console.log('Processing answer for teamId:', teamId);
+    console.log('Processing answer for teamId:', teamId, 'pointId:', pointId, 'answer:', answer);
     
     // Make sure models are registered
     if (!mongoose.models.Route) {
@@ -138,122 +138,164 @@ export async function POST(request: Request) {
       });
     }
 
+    // Validate that the point exists
+    if (!team.currentRoute || !team.currentRoute.points || team.currentRoute.points.length === 0) {
+      console.error('Team has no route or points array is empty');
+      return NextResponse.json({ message: 'שגיאה בטעינת הנקודה' }, { status: 500 });
+    }
+
+    // Validate current point index
+    if (team.currentPointIndex < 0 || team.currentPointIndex >= team.currentRoute.points.length) {
+      console.error('Current point index out of bounds:', team.currentPointIndex);
+      return NextResponse.json({ message: 'שגיאה בטעינת הנקודה' }, { status: 500 });
+    }
+
     const point = team.currentRoute.points[team.currentPointIndex];
-    if (!point || point._id.toString() !== pointId) {
+    if (!point) {
+      console.error('Current point is undefined');
       return NextResponse.json({ message: 'נקודה לא נמצאה' }, { status: 404 });
     }
 
+    if (point._id.toString() !== pointId) {
+      console.error('Point ID mismatch:', point._id.toString(), '!=', pointId);
+      return NextResponse.json({ message: 'נקודה לא נמצאה' }, { status: 404 });
+    }
+
+    // Validate that the point has a question
+    if (!point.question || !point.question.correctAnswer) {
+      console.error('Point has no question or correct answer');
+      return NextResponse.json({ message: 'שגיאה בטעינת השאלה' }, { status: 500 });
+    }
+
     const correct = point.question.correctAnswer === answer;
+    console.log('Answer is', correct ? 'correct' : 'incorrect');
 
     // Create event for the answer
-    await mongoose.models.Event.create({
-      team: team._id,
-      type: 'QUESTION_ANSWERED',
-      point: pointId,
-      route: team.currentRoute._id,
-      details: {
-        answer,
-        correct,
-        attempt: team.attempts || 1
-      },
-    });
+    try {
+      await mongoose.models.Event.create({
+        team: team._id,
+        type: 'QUESTION_ANSWERED',
+        point: pointId,
+        route: team.currentRoute._id,
+        details: {
+          answer,
+          correct,
+          attempt: team.attempts || 1
+        },
+      });
+      console.log('Created event for answer');
+    } catch (eventError) {
+      console.error('Error creating event:', eventError);
+      // Continue even if event creation fails
+    }
 
     if (!correct) {
       // First check if we're about to reach the second attempt
-      const currentTeams = await (Team as Model<TeamWithRoute>).find(
-        { _id: team._id }
-      )
-      .populate({
-        path: 'currentRoute',
-        populate: {
-          path: 'points',
-          model: 'Point'
+      try {
+        const currentTeams = await (Team as Model<TeamWithRoute>).find(
+          { _id: team._id }
+        )
+        .populate({
+          path: 'currentRoute',
+          populate: {
+            path: 'points',
+            model: 'Point'
+          }
+        })
+        .limit(1)
+        .exec();
+
+        const currentTeam = currentTeams[0];
+        if (!currentTeam) {
+          console.error('Could not find team for attempts update');
+          return NextResponse.json({ message: 'קבוצה לא נמצאה' }, { status: 404 });
         }
-      })
-      .limit(1)
-      .exec();
 
-      const currentTeam = currentTeams[0];
-      if (!currentTeam) {
-        return NextResponse.json({ message: 'קבוצה לא נמצאה' }, { status: 404 });
-      }
-
-      console.log('Current attempts before increment:', currentTeam.attempts); // Debug log
-      const attempts = (currentTeam.attempts || 0) + 1;
-      
-      // New game flow logic:
-      // 1. First attempt - if wrong, no penalty
-      // 2. Second attempt - if wrong, apply penalty and then show zoom out image (hint level 1)
-      // 3. After penalty, player gets one more attempt with zoom out image
-      // 4. If wrong again, apply penalty and then move to next point
-      
-      // Check if this is the second attempt (after first wrong answer)
-      if (attempts === 2) {
-        const penaltyMinutes = currentTeam.currentRoute.settings?.penaltyTime || 2;
-        const penaltyTime = penaltyMinutes * 60 * 1000; // Convert minutes to milliseconds
+        console.log('Current attempts before increment:', currentTeam.attempts); // Debug log
+        const attempts = (currentTeam.attempts || 0) + 1;
         
-        // Apply penalty and set hint level to 1 (zoom out) after penalty
-        await (Team as Model<TeamWithRoute>).updateOne(
-          { _id: team._id },
-          { 
-            $set: { 
-              penaltyEndTime: new Date(Date.now() + penaltyTime),
-              attempts: attempts
+        // New game flow logic:
+        // 1. First attempt - if wrong, no penalty
+        // 2. Second attempt - if wrong, apply penalty and then show zoom out image (hint level 1)
+        // 3. After penalty, player gets one more attempt with zoom out image
+        // 4. If wrong again, apply penalty and then move to next point
+        
+        // Check if this is the second attempt (after first wrong answer)
+        if (attempts === 2) {
+          const penaltyMinutes = currentTeam.currentRoute.settings?.penaltyTime || 2;
+          const penaltyTime = penaltyMinutes * 60 * 1000; // Convert minutes to milliseconds
+          
+          // Apply penalty and set hint level to 1 (zoom out) after penalty
+          const updateResult = await (Team as Model<TeamWithRoute>).updateOne(
+            { _id: team._id },
+            { 
+              $set: { 
+                penaltyEndTime: new Date(Date.now() + penaltyTime),
+                attempts: attempts
+              }
             }
-          }
-        ).exec();
+          ).exec();
+          
+          console.log('Update result for penalty:', updateResult);
 
-        // Request hint level 1 (zoom out) to be shown after penalty
-        await requestAutomaticHint(teamId, pointId, 1);
+          // Request hint level 1 (zoom out) to be shown after penalty
+          await requestAutomaticHint(teamId, pointId, 1);
 
-        return NextResponse.json({
-          correct: false,
-          message: 'טעית, המתן לזמן העונשין',
-          penaltyEndTime: new Date(Date.now() + penaltyTime).toISOString(),
-          attempts: attempts,
-          hintRequested: true,
-          hintLevel: 1
-        });
-      }
-      // Check if this is the third attempt (after penalty, with zoom out image)
-      else if (attempts === 3) {
-        const penaltyMinutes = currentTeam.currentRoute.settings?.penaltyTime || 2;
-        const penaltyTime = penaltyMinutes * 60 * 1000; // Convert minutes to milliseconds
-        
-        // Apply penalty and move to next point after penalty
-        await (Team as Model<TeamWithRoute>).updateOne(
-          { _id: team._id },
-          { 
-            $set: { 
-              penaltyEndTime: new Date(Date.now() + penaltyTime),
-              attempts: 0 // Reset attempts for next point
-            },
-            $inc: { currentPointIndex: 1 } // Move to next point
-          }
-        ).exec();
+          return NextResponse.json({
+            correct: false,
+            message: 'טעית, המתן לזמן העונשין',
+            penaltyEndTime: new Date(Date.now() + penaltyTime).toISOString(),
+            attempts: attempts,
+            hintRequested: true,
+            hintLevel: 1
+          });
+        }
+        // Check if this is the third attempt (after penalty, with zoom out image)
+        else if (attempts === 3) {
+          const penaltyMinutes = currentTeam.currentRoute.settings?.penaltyTime || 2;
+          const penaltyTime = penaltyMinutes * 60 * 1000; // Convert minutes to milliseconds
+          
+          // Apply penalty and move to next point after penalty
+          const updateResult = await (Team as Model<TeamWithRoute>).updateOne(
+            { _id: team._id },
+            { 
+              $set: { 
+                penaltyEndTime: new Date(Date.now() + penaltyTime),
+                attempts: 0 // Reset attempts for next point
+              },
+              $inc: { currentPointIndex: 1 } // Move to next point
+            }
+          ).exec();
+          
+          console.log('Update result for move to next point:', updateResult);
 
-        return NextResponse.json({
-          correct: false,
-          message: 'טעית, המתן לזמן העונשין ואז רוץ לנקודה הבאה',
-          penaltyEndTime: new Date(Date.now() + penaltyTime).toISOString(),
-          attempts: attempts
-        });
-      }
-      // First attempt - just increment attempts
-      else {
-        // Increment the attempts counter
-        await (Team as Model<TeamWithRoute>).updateOne(
-          { _id: team._id },
-          { $inc: { attempts: 1 } }
-        ).exec();
-
-        console.log('Updated team attempts:', attempts); // Debug log
-        
-        return NextResponse.json({
-          correct: false,
-          message: 'טעית, נסה שוב',
-          attempts
-        });
+          return NextResponse.json({
+            correct: false,
+            message: 'טעית, המתן לזמן העונשין ואז רוץ לנקודה הבאה',
+            penaltyEndTime: new Date(Date.now() + penaltyTime).toISOString(),
+            attempts: attempts
+          });
+        }
+        // First attempt - just increment attempts
+        else {
+          // Increment the attempts counter
+          const updateResult = await (Team as Model<TeamWithRoute>).updateOne(
+            { _id: team._id },
+            { $inc: { attempts: 1 } }
+          ).exec();
+          
+          console.log('Update result for attempts increment:', updateResult);
+          console.log('Updated team attempts:', attempts); // Debug log
+          
+          return NextResponse.json({
+            correct: false,
+            message: 'טעית, נסה שוב',
+            attempts
+          });
+        }
+      } catch (attemptsError) {
+        console.error('Error handling incorrect answer:', attemptsError);
+        return NextResponse.json({ message: 'שגיאה בעיבוד התשובה' }, { status: 500 });
       }
     }
 
@@ -261,23 +303,36 @@ export async function POST(request: Request) {
     // 1. Reset attempts counter
     // 2. Add point to visited points
     // 3. Increment current point index
-    await (Team as Model<TeamWithRoute>).updateOne(
-      { _id: team._id },
-      { 
-        $set: { attempts: 0 },
-        $push: { visitedPoints: pointId },
-        $inc: { currentPointIndex: 1 }
-      }
-    ).exec();
+    try {
+      const updateResult = await (Team as Model<TeamWithRoute>).updateOne(
+        { _id: team._id },
+        { 
+          $set: { attempts: 0 },
+          $push: { visitedPoints: pointId },
+          $inc: { currentPointIndex: 1 }
+        }
+      ).exec();
+      
+      console.log('Update result for correct answer:', updateResult);
+    } catch (updateError) {
+      console.error('Error updating team after correct answer:', updateError);
+      return NextResponse.json({ message: 'שגיאה בעיבוד התשובה' }, { status: 500 });
+    }
 
     // Check if this was the last point
     const isLastPoint = team.currentPointIndex === team.currentRoute.points.length - 1;
     if (isLastPoint) {
-      await mongoose.models.Event.create({
-        team: team._id,
-        type: 'ROUTE_COMPLETED',
-        route: team.currentRoute._id,
-      });
+      try {
+        await mongoose.models.Event.create({
+          team: team._id,
+          type: 'ROUTE_COMPLETED',
+          route: team.currentRoute._id,
+        });
+        console.log('Created event for route completion');
+      } catch (eventError) {
+        console.error('Error creating route completion event:', eventError);
+        // Continue even if event creation fails
+      }
 
       return NextResponse.json({ 
         correct: true,
