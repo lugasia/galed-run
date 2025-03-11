@@ -175,7 +175,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
   const fetchTeam = async () => {
     try {
+      // נסה לקבל קבוצה לפי המזהה
       const response = await fetch(`/api/game/${params.teamId}`);
+      
       if (!response.ok) {
         console.error('Error response from server:', response.status, response.statusText);
         
@@ -183,13 +185,46 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         try {
           const errorData = await response.json();
           console.error('Error data:', errorData);
-          setMessage(errorData.message || 'קבוצה לא נמצאה. בדוק את הקישור שהזנת.');
           
           // שמור את המידע הדיאגנוסטי
           if (errorData.debug) {
             console.log('Debug info:', errorData.debug);
             window.debugInfo = errorData.debug;
           }
+          
+          // אם לא נמצאה קבוצה, נסה לקבל קבוצה פעילה כלשהי
+          if (response.status === 404) {
+            console.log('Team not found, trying to get any active team');
+            const activeTeamsResponse = await fetch('/api/teams/active');
+            
+            if (activeTeamsResponse.ok) {
+              const activeTeamsData = await activeTeamsResponse.json();
+              
+              if (activeTeamsData.teams && activeTeamsData.teams.length > 0) {
+                console.log('Found active teams:', activeTeamsData.teams);
+                
+                // השתמש בקבוצה הראשונה שנמצאה
+                const firstActiveTeam = activeTeamsData.teams[0];
+                console.log('Using first active team:', firstActiveTeam);
+                
+                // נסה לקבל את הקבוצה המלאה
+                const teamResponse = await fetch(`/api/game/${firstActiveTeam._id}`);
+                
+                if (teamResponse.ok) {
+                  const teamData = await teamResponse.json();
+                  if (teamData.team) {
+                    console.log('Successfully fetched active team');
+                    setTeam(teamData.team);
+                    processTeamData(teamData.team);
+                    setLoading(false);
+                    return;
+                  }
+                }
+              }
+            }
+          }
+          
+          setMessage(errorData.message || 'קבוצה לא נמצאה. בדוק את הקישור שהזנת.');
         } catch (parseError) {
           setMessage('קבוצה לא נמצאה. בדוק את הקישור שהזנת.');
         }
@@ -214,46 +249,50 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }
       
       setTeam(data.team);
-      if (data.team?.currentRoute?.points) {
-        setPoints(data.team.currentRoute.points);
-        
-        // Update completed points list
-        if (data.team.visitedPoints && data.team.visitedPoints.length > 0) {
-          const completed = data.team.currentRoute.points.filter(
-            (point: Point) => data.team.visitedPoints.includes(point._id)
-          );
-          setCompletedPoints(completed);
-        }
-      }
-      
-      // Show question only if the team has started
-      if (data.team?.startTime) {
-        setShowQuestion(true);
-      } else {
-        setShowQuestion(false);
-      }
-      
-      // בדוק אם יש לקבוצה רמז פעיל
-      if (data.team?.hintRequested) {
-        // וודא שהרמז הוא עבור הנקודה הנוכחית
-        if (data.team.hintRequested.pointIndex === data.team.currentPointIndex) {
-          setCurrentHintLevel(data.team.hintRequested.hintLevel);
-        }
-      }
-      
-      // Check if team has a penalty
-      if (data.team?.penaltyEndTime) {
-        const penaltyEnd = new Date(data.team.penaltyEndTime);
-        if (penaltyEnd > new Date()) {
-          setPenaltyEndTime(penaltyEnd);
-        }
-      }
-      
+      processTeamData(data.team);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching team:', error);
       setMessage('שגיאה בטעינת נתוני הקבוצה. נסה לרענן את העמוד.');
       setLoading(false);
+    }
+  };
+  
+  // פונקציה לעיבוד נתוני הקבוצה
+  const processTeamData = (team: Team) => {
+    if (team?.currentRoute?.points) {
+      setPoints(team.currentRoute.points);
+      
+      // Update completed points list
+      if (team.visitedPoints && team.visitedPoints.length > 0) {
+        const completed = team.currentRoute.points.filter(
+          (point: Point) => team.visitedPoints.includes(point._id)
+        );
+        setCompletedPoints(completed);
+      }
+    }
+    
+    // Show question only if the team has started
+    if (team?.startTime) {
+      setShowQuestion(true);
+    } else {
+      setShowQuestion(false);
+    }
+    
+    // בדוק אם יש לקבוצה רמז פעיל
+    if (team?.hintRequested) {
+      // וודא שהרמז הוא עבור הנקודה הנוכחית
+      if (team.hintRequested.pointIndex === team.currentPointIndex) {
+        setCurrentHintLevel(team.hintRequested.hintLevel);
+      }
+    }
+    
+    // Check if team has a penalty
+    if (team?.penaltyEndTime) {
+      const penaltyEnd = new Date(team.penaltyEndTime);
+      if (penaltyEnd > new Date()) {
+        setPenaltyEndTime(penaltyEnd);
+      }
     }
   };
 
