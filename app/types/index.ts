@@ -10,6 +10,7 @@ export interface Point {
     text: string;
     options: string[];
     correctAnswer: string;
+    image?: string; // Optional image URL for the question
   };
   images?: {
     zoomIn: string; // URL לתמונת זום אין

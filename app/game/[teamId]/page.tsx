@@ -307,7 +307,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          teamId: params.teamId,
+          teamId: team.uniqueLink,
           pointId: currentPoint._id,
           answer: selectedAnswer,
         }),
@@ -545,6 +545,16 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                 animate={{ opacity: 1, scale: 1 }}
                 className="bg-white rounded-lg shadow-lg p-3"
               >
+                {currentPoint.question.image && (
+                  <div className="mb-3">
+                    <img 
+                      src={currentPoint.question.image} 
+                      alt="תמונת השאלה" 
+                      className="w-full h-48 object-cover rounded-lg"
+                      onClick={() => setShowPointImage(true)}
+                    />
+                  </div>
+                )}
                 <div className="flex items-center gap-2 mb-2">
                   <div className="bg-blue-100 p-1.5 rounded-full">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

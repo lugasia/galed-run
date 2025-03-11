@@ -30,6 +30,10 @@ const PointSchema = new Schema({
     correctAnswer: {
       type: String,
       default: '',
+    },
+    image: {
+      type: String,
+      default: '',
     }
   },
   images: {
@@ -56,5 +60,5 @@ const PointSchema = new Schema({
 
 // Export both the model and the schema for registration in other files
 const Point = mongoose.models.Point || mongoose.model('Point', PointSchema);
-export default Point;
-export { PointSchema }; 
+export { PointSchema };
+export default Point; 
