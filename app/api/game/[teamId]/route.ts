@@ -111,27 +111,6 @@ export async function GET(
       penaltyEndTime: team.penaltyEndTime
     });
 
-    // If the team has no startTime but the user is accessing the game page,
-    // we should set the startTime to ensure the team appears in the admin panel
-    if (!team.startTime) {
-      console.log('Team has no startTime, setting it now');
-      team.startTime = new Date();
-      team.active = true;
-      
-      // Set initial location to the first point in the route if available
-      if (team.currentRoute && team.currentRoute.points && team.currentRoute.points.length > 0) {
-        const firstPoint = team.currentRoute.points[0];
-        team.currentLocation = {
-          type: 'Point',
-          coordinates: firstPoint.location,
-          timestamp: new Date()
-        };
-      }
-      
-      await team.save();
-      console.log('Team updated with startTime and location');
-    }
-
     return NextResponse.json({ team: JSON.parse(JSON.stringify(team)) });
   } catch (error) {
     console.error('Error in GET /api/game/[teamId]:', error);
