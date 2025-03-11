@@ -285,14 +285,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }
     }
     
-    // אל תציג את השאלה אוטומטית - המשתמש צריך ללחוץ על כפתור "הגעתי"
-    // Show question only if the team has started
-    if (team?.startTime) {
-      // אל תשנה את מצב showQuestion כאן - זה יקרה רק בלחיצה על כפתור
-      // setShowQuestion(true);
-    } else {
-      setShowQuestion(false);
-    }
+    // תמיד הגדר showQuestion ל-false בעת טעינת הדף
+    // המשתמש צריך ללחוץ על כפתור "הגעתי" כדי לראות את השאלה
+    setShowQuestion(false);
     
     // בדוק אם יש לקבוצה רמז פעיל
     if (team?.hintRequested) {

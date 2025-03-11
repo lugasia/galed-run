@@ -286,16 +286,66 @@ export async function POST(request: Request) {
       });
     } else {
       // Get next point info
-      const nextPoint = team.currentRoute.points[team.currentPointIndex + 1];
-      return NextResponse.json({ 
-        correct: true,
-        message: 'צדקת! רוץ לנקודה הבאה',
-        nextPoint: {
-          name: nextPoint.name,
-          code: nextPoint.code,
-          isFinishPoint: nextPoint.isFinishPoint || nextPoint.code === '1011'
+      try {
+        // Fetch the team again to get the updated currentPointIndex
+        const updatedTeam = await (Team as Model<TeamWithRoute>).findById(team._id)
+          .populate({
+            path: 'currentRoute',
+            populate: {
+              path: 'points',
+              model: 'Point'
+            }
+          });
+        
+        if (!updatedTeam) {
+          console.error('Could not find team after updating currentPointIndex');
+          return NextResponse.json({ 
+            correct: true,
+            message: 'צדקת! רוץ לנקודה הבאה'
+          });
         }
-      });
+        
+        // Use the updated team's currentPointIndex
+        const nextPointIndex = updatedTeam.currentPointIndex;
+        console.log('Next point index:', nextPointIndex);
+        
+        // Make sure the next point exists
+        if (nextPointIndex >= updatedTeam.currentRoute.points.length) {
+          console.error('Next point index out of bounds:', nextPointIndex, 'points length:', updatedTeam.currentRoute.points.length);
+          return NextResponse.json({ 
+            correct: true,
+            message: 'צדקת! רוץ לנקודה הבאה'
+          });
+        }
+        
+        const nextPoint = updatedTeam.currentRoute.points[nextPointIndex];
+        console.log('Next point:', nextPoint ? nextPoint.name : 'undefined');
+        
+        if (!nextPoint) {
+          console.error('Next point is undefined');
+          return NextResponse.json({ 
+            correct: true,
+            message: 'צדקת! רוץ לנקודה הבאה'
+          });
+        }
+        
+        return NextResponse.json({ 
+          correct: true,
+          message: 'צדקת! רוץ לנקודה הבאה',
+          nextPoint: {
+            name: nextPoint.name,
+            code: nextPoint.code,
+            isFinishPoint: nextPoint.isFinishPoint || nextPoint.code === '1011'
+          }
+        });
+      } catch (nextPointError) {
+        console.error('Error getting next point:', nextPointError);
+        // Return a simpler response if we can't get the next point
+        return NextResponse.json({ 
+          correct: true,
+          message: 'צדקת! רוץ לנקודה הבאה'
+        });
+      }
     }
   } catch (error) {
     console.error('Error processing answer:', error);
