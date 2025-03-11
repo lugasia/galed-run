@@ -6,6 +6,27 @@ dotenv.config();
 const port = process.env.PORT || 3001;
 const wss = new WebSocketServer({ port: Number(port) });
 
+// Handle process termination
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Closing WebSocket server...');
+  wss.close(() => {
+    console.log('WebSocket server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received. Closing WebSocket server...');
+  wss.close(() => {
+    console.log('WebSocket server closed');
+    process.exit(0);
+  });
+});
+
+wss.on('error', (error) => {
+  console.error('WebSocket server error:', error);
+});
+
 wss.on('connection', (ws) => {
   console.log('New client connected');
   
@@ -25,6 +46,10 @@ wss.on('connection', (ws) => {
   
   ws.on('close', () => {
     console.log('Client disconnected');
+  });
+
+  ws.on('error', (error) => {
+    console.error('WebSocket connection error:', error);
   });
 
   // Send initial connection message
