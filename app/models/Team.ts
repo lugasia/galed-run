@@ -1,7 +1,17 @@
 import mongoose, { Document, Schema } from 'mongoose';
-import Point from './Point';
-import Route from './Route';
+import Point, { PointSchema } from './Point';
+import Route, { RouteSchema } from './Route';
 import { motion } from 'framer-motion';
+
+// Make sure Point model is registered
+if (mongoose.models && !mongoose.models.Point) {
+  mongoose.model('Point', PointSchema);
+}
+
+// Make sure Route model is registered
+if (mongoose.models && !mongoose.models.Route) {
+  mongoose.model('Route', RouteSchema);
+}
 
 export interface ITeam extends Document {
   name: string;

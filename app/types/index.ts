@@ -11,6 +11,12 @@ export interface Point {
     options: string[];
     correctAnswer: string;
   };
+  images?: {
+    zoomIn: string; // URL לתמונת זום אין
+    zoomOut: string; // URL לתמונת זום אאוט
+  };
+  isAdvanced?: boolean; // האם זו נקודה רחוקה למחפשי אתגר
+  isFinishPoint?: boolean; // האם זו נקודת סיום (פאב)
 }
 
 export interface Team {
@@ -34,15 +40,22 @@ export interface Team {
     timestamp: Date;
   };
   active?: boolean;
+  remainingPenaltyTime?: number;
+  hintRequested?: {
+    pointIndex: number;
+    hintLevel: number; // 1 = זום אאוט, 2 = שם התחנה
+    timestamp: Date;
+  };
 }
 
 export interface Route {
   _id: string;
   name: string;
   points: Point[];
+  includeAdvancedPoints?: boolean;
 }
 
-export type EventType = 'POINT_REACHED' | 'QUESTION_ANSWERED' | 'ROUTE_STARTED' | 'ROUTE_COMPLETED' | 'PENALTY_APPLIED';
+export type EventType = 'POINT_REACHED' | 'QUESTION_ANSWERED' | 'ROUTE_STARTED' | 'ROUTE_COMPLETED' | 'PENALTY_APPLIED' | 'HINT_REQUESTED';
 
 export interface Event {
   _id: string;
@@ -58,4 +71,5 @@ export interface Event {
 }
 
 export const DEFAULT_MAX_ATTEMPTS = 3;
-export const DEFAULT_PENALTY_TIME = 2; // minutes 
+export const DEFAULT_PENALTY_TIME = 2; // minutes
+export const HINT_PENALTY_TIME = 1; // minutes 

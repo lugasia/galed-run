@@ -5,47 +5,6 @@ import { Point, Route } from '../../types';
 import AdminNav from '../../components/AdminNav';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface DefaultPoint {
-  id: number;
-  name: string;
-  code: string;
-  location: [number, number];
-  question: {
-    text: string;
-    options: string[];
-    correctAnswer: string;
-  };
-}
-
-const defaultCheckpoints: DefaultPoint[] = [
-  { id: 1, name: "מעל הבית של נימה", code: "1001", location: [32.558658, 35.076729],
-    question: { text: "כמה ילדים יש בקיבוץ גלעד?", options: ["60", "80", "100", "120"], correctAnswer: "100" }},
-  { id: 2, name: "מקלט ליד הכלבו", code: "1002", location: [32.55719444, 35.07772222],
-    question: { text: "באיזו שנה הוקם קיבוץ גלעד?", options: ["1935", "1945", "1950", "1956"], correctAnswer: "1945" }},
-  { id: 3, name: "מקלט ליד גן היובל", code: "1003", location: [32.557859, 35.076676],
-    question: { text: "מה שם ההר הקרוב ביותר לקיבוץ?", options: ["הר תבור", "הר גלבוע", "הר מירון", "הר כרמל"], correctAnswer: "הר גלבוע" }},
-  { id: 4, name: "דירת אירוח", code: "1004", location: [32.55675, 35.07777778],
-    question: { text: "כמה חברי קיבוץ יש בגלעד?", options: ["120", "150", "180", "200"], correctAnswer: "180" }},
-  { id: 5, name: "מאחורי הבית של ניצן", code: "1005", location: [32.55616667, 35.07791667],
-    question: { text: "איזה ענף חקלאי הכי גדול בקיבוץ?", options: ["רפת", "לול", "מטעים", "גד״ש"], correctAnswer: "רפת" }},
-  { id: 6, name: "חישוק", code: "1006", location: [32.55877778, 35.07852778],
-    question: { text: "מי היה המזכיר הראשון של הקיבוץ?", options: ["משה כהן", "דוד לוי", "יוסי גולדברג", "שלמה אבני"], correctAnswer: "דוד לוי" }},
-  { id: 7, name: "פינת חי", code: "1007", location: [32.55608333, 35.07925],
-    question: { text: "איזה מבנה נבנה ראשון בקיבוץ?", options: ["חדר האוכל", "המזכירות", "בית הילדים", "המרפאה"], correctAnswer: "בית הילדים" }},
-  { id: 8, name: "מרפאה", code: "1008", location: [32.55683333, 35.07825],
-    question: { text: "כמה דונם שטח יש לקיבוץ?", options: ["2000", "3500", "5000", "7000"], correctAnswer: "5000" }},
-  { id: 9, name: "גן עופר", code: "1009", location: [32.55738889, 35.07630556],
-    question: { text: "באיזה עמק נמצא הקיבוץ?", options: ["עמק יזרעאל", "עמק חרוד", "עמק בית שאן", "עמק הירדן"], correctAnswer: "עמק חרוד" }},
-  { id: 10, name: "מאחורי הבית של נטע", code: "1010", location: [32.55652778, 35.07708333],
-    question: { text: "מה הגידול החקלאי העיקרי בשדות הקיבוץ?", options: ["חיטה", "תירס", "אבוקדו", "כותנה"], correctAnswer: "חיטה" }},
-  { id: 11, name: "פאב", code: "1011", location: [32.55636111, 35.0755],
-    question: { text: "מה שם הנחל הזורם ליד הקיבוץ?", options: ["נחל חרוד", "נחל תבור", "נחל קישון", "נחל גלעד"], correctAnswer: "נחל חרוד" }},
-  { id: 12, name: "הכביש לגלעד", code: "1012", location: [32.568, 35.07827778],
-    question: { text: "כמה בתי ילדים יש בקיבוץ?", options: ["3", "4", "5", "6"], correctAnswer: "4" }},
-  { id: 13, name: "דרך נוף גלעד", code: "1013", location: [32.55863889, 35.06038889],
-    question: { text: "מה שם בית הספר האזורי?", options: ["עמקים", "גלעד", "עין חרוד", "שקד"], correctAnswer: "עמקים" }}
-];
-
 const RouteCard = ({ route, onEdit, onDelete }: { 
   route: Route; 
   onEdit: (route: Route) => void;
@@ -105,7 +64,8 @@ const RouteCard = ({ route, onEdit, onDelete }: {
 export default function RoutesPage() {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [showAddRoute, setShowAddRoute] = useState(false);
-  const [selectedPoints, setSelectedPoints] = useState<DefaultPoint[]>([]);
+  const [selectedPoints, setSelectedPoints] = useState<Point[]>([]);
+  const [availablePoints, setAvailablePoints] = useState<Point[]>([]);
   const [routeName, setRouteName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -130,13 +90,28 @@ export default function RoutesPage() {
     }
   };
 
+  const fetchPoints = async () => {
+    try {
+      const response = await fetch('/api/points?apiKey=prj_Y5PjW0xeNJLV0hCbA5qG4eVoOcGB');
+      if (!response.ok) {
+        throw new Error('Failed to fetch points');
+      }
+      const data = await response.json();
+      console.log('Fetched points:', data);
+      setAvailablePoints(data);
+    } catch (error) {
+      console.error('Error fetching points:', error);
+      setError('שגיאה בטעינת הנקודות');
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
     
     const init = async () => {
       setLoading(true);
       try {
-        await fetchRoutes();
+        await Promise.all([fetchRoutes(), fetchPoints()]);
       } catch (error) {
         console.error('Error in init:', error);
       } finally {
@@ -153,11 +128,11 @@ export default function RoutesPage() {
     };
   }, []);
 
-  const handlePointToggle = (point: DefaultPoint) => {
+  const handlePointToggle = (point: Point) => {
     setSelectedPoints(prev => {
-      const exists = prev.find(p => p.id === point.id);
+      const exists = prev.find(p => p._id === point._id);
       if (exists) {
-        return prev.filter(p => p.id !== point.id);
+        return prev.filter(p => p._id !== point._id);
       } else {
         return [...prev, point];
       }
@@ -170,23 +145,8 @@ export default function RoutesPage() {
     setPenaltyTime(route.settings?.penaltyTime || 1);
     setMaxAttempts(route.settings?.maxAttempts || 3);
     
-    // Map the existing points to match the format of defaultCheckpoints
-    // and maintain their original order
-    const routePoints = route.points.map((point: Point) => {
-      const defaultPoint = defaultCheckpoints.find(dp => dp.code === point.code);
-      if (!defaultPoint) {
-        console.error(`Point with code ${point.code} not found in defaultCheckpoints`);
-        return null;
-      }
-      return {
-        ...defaultPoint,
-        name: point.name,
-        location: point.location,
-        question: point.question
-      };
-    }).filter(Boolean) as DefaultPoint[];
-    
-    setSelectedPoints(routePoints);
+    // Set the selected points from the route
+    setSelectedPoints(route.points);
     setShowAddRoute(true);
   };
 
@@ -195,18 +155,8 @@ export default function RoutesPage() {
     if (!routeName || selectedPoints.length === 0) return;
 
     try {
-      // First, fetch all existing points
-      const pointsResponse = await fetch('/api/points');
-      if (!pointsResponse.ok) {
-        throw new Error('Failed to fetch points');
-      }
-      const existingPoints = await pointsResponse.json();
-
       // Get the point IDs in the correct order
-      const orderedPointIds = selectedPoints.map(selectedPoint => {
-        const existingPoint = existingPoints.find((p: Point) => p.code === selectedPoint.code);
-        return existingPoint?._id;
-      }).filter(Boolean);
+      const orderedPointIds = selectedPoints.map(point => point._id);
 
       const settings = {
         penaltyTime: Number(penaltyTime),
@@ -412,12 +362,12 @@ export default function RoutesPage() {
                           נקודות במסלול
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {defaultCheckpoints.map((point) => (
+                          {availablePoints.map((point) => (
                             <div
-                              key={point.id}
+                              key={point._id}
                               onClick={() => handlePointToggle(point)}
                               className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                                selectedPoints.find(p => p.id === point.id)
+                                selectedPoints.find(p => p._id === point._id)
                                   ? 'border-blue-500 bg-blue-50'
                                   : 'border-gray-200 hover:border-gray-300'
                               }`}
@@ -427,7 +377,7 @@ export default function RoutesPage() {
                                   <div className="font-medium">{point.name}</div>
                                   <div className="text-sm text-gray-600">קוד: {point.code}</div>
                                 </div>
-                                {selectedPoints.find(p => p.id === point.id) && (
+                                {selectedPoints.find(p => p._id === point._id) && (
                                   <svg className="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                   </svg>
@@ -606,12 +556,12 @@ export default function RoutesPage() {
                         נקודות במסלול
                       </label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {defaultCheckpoints.map((point) => (
+                        {availablePoints.map((point) => (
                           <div
-                            key={point.id}
+                            key={point._id}
                             onClick={() => handlePointToggle(point)}
                             className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                              selectedPoints.find(p => p.id === point.id)
+                              selectedPoints.find(p => p._id === point._id)
                                 ? 'border-blue-500 bg-blue-50'
                                 : 'border-gray-200 hover:border-gray-300'
                             }`}
@@ -621,7 +571,7 @@ export default function RoutesPage() {
                                 <div className="font-medium">{point.name}</div>
                                 <div className="text-sm text-gray-600">קוד: {point.code}</div>
                               </div>
-                              {selectedPoints.find(p => p.id === point.id) && (
+                              {selectedPoints.find(p => p._id === point._id) && (
                                 <svg className="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>

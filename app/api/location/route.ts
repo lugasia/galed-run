@@ -1,10 +1,24 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '../../lib/mongodb';
 import mongoose from 'mongoose';
+import { Team } from '../../models/Team';
+import Point, { PointSchema } from '../../models/Point';
+import Route, { RouteSchema } from '../../models/Route';
 
 export async function POST(request: Request) {
   try {
     await dbConnect();
+    
+    // Make sure Point model is registered
+    if (!mongoose.models.Point) {
+      mongoose.model('Point', PointSchema);
+    }
+    
+    // Make sure Route model is registered
+    if (!mongoose.models.Route) {
+      mongoose.model('Route', RouteSchema);
+    }
+
     const { teamId, coordinates } = await request.json();
 
     // Update team's current location

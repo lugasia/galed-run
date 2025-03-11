@@ -1,6 +1,12 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
+import Point, { PointSchema } from './Point';
 
-const RouteSchema = new mongoose.Schema({
+// Make sure Point model is registered
+if (mongoose.models && !mongoose.models.Point) {
+  mongoose.model('Point', PointSchema);
+}
+
+const RouteSchema = new Schema({
   name: {
     type: String,
     required: true,
@@ -34,4 +40,6 @@ const RouteSchema = new mongoose.Schema({
   timestamps: true
 });
 
-export default mongoose.models.Route || mongoose.model('Route', RouteSchema); 
+const Route = mongoose.models.Route || mongoose.model('Route', RouteSchema);
+export default Route;
+export { RouteSchema }; 

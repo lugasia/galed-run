@@ -4,21 +4,46 @@ import mongoose from 'mongoose';
 
 export async function GET() {
   try {
-    await dbConnect();
-    const isConnected = mongoose.connection.readyState === 1;
+    console.log('Starting MongoDB connection test...');
     
-    return NextResponse.json({
+    // Test basic connection
+    await dbConnect();
+    
+    // Test basic write operation
+    const testCollection = mongoose.connection.collection('test');
+    const testDoc = { test: true, timestamp: new Date() };
+    await testCollection.insertOne(testDoc);
+    console.log('Successfully wrote test document');
+    
+    // Test read operation
+    const readResult = await testCollection.findOne({ test: true });
+    console.log('Successfully read test document:', readResult);
+    
+    // Clean up
+    await testCollection.deleteOne({ test: true });
+    console.log('Successfully cleaned up test document');
+
+    return NextResponse.json({ 
       status: 'success',
-      connected: isConnected,
-      readyState: mongoose.connection.readyState,
-      dbName: mongoose.connection.name,
+      details: {
+        connected: mongoose.connection.readyState === 1,
+        database: mongoose.connection.name,
+        host: mongoose.connection.host
+      }
     });
   } catch (error) {
-    console.error('MongoDB connection test error:', error);
-    return NextResponse.json({
-      status: 'error',
-      message: 'Failed to connect to MongoDB',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    }, { status: 500 });
+    console.error('Database test failed:', error);
+    return NextResponse.json(
+      { 
+        error: 'Database test failed',
+        details: {
+          message: error.message,
+          name: error.name,
+          code: error.code,
+          connectionState: mongoose.connection.readyState
+        }
+      },
+      { status: 500 }
+    );
   }
 } 

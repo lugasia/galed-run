@@ -1,6 +1,6 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
-const PointSchema = new mongoose.Schema({
+const PointSchema = new Schema({
   name: {
     type: String,
     required: true,
@@ -31,9 +31,30 @@ const PointSchema = new mongoose.Schema({
       type: String,
       default: '',
     }
+  },
+  images: {
+    zoomIn: {
+      type: String,
+      default: '',
+    },
+    zoomOut: {
+      type: String,
+      default: '',
+    }
+  },
+  isAdvanced: {
+    type: Boolean,
+    default: false,
+  },
+  isFinishPoint: {
+    type: Boolean,
+    default: false,
   }
 }, {
   timestamps: true
 });
 
-export default mongoose.models.Point || mongoose.model('Point', PointSchema); 
+// Export both the model and the schema for registration in other files
+const Point = mongoose.models.Point || mongoose.model('Point', PointSchema);
+export default Point;
+export { PointSchema }; 

@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import dbConnect from '../../lib/mongodb';
 import mongoose, { Model } from 'mongoose';
 import { Team, ITeam } from '../../models/Team';
-import Route from '../../models/Route';
-import Point from '../../models/Point';
+import Route, { RouteSchema } from '../../models/Route';
+import Point, { PointSchema } from '../../models/Point';
 
 export async function GET(request: Request) {
   try {
@@ -11,17 +11,25 @@ export async function GET(request: Request) {
     
     // Make sure Route model is registered
     if (!mongoose.models.Route) {
-      mongoose.model('Route', Route.schema);
+      mongoose.model('Route', RouteSchema);
+    }
+    
+    // Make sure Point model is registered
+    if (!mongoose.models.Point) {
+      mongoose.model('Point', PointSchema);
     }
 
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get('active') === 'true';
+    const updateLinks = searchParams.get('updateLinks') === 'true';
     
-    // Build query based on parameters
+    // Build query based on parameters - don't filter by startTime existence
+    // This ensures teams are always visible even if they started prematurely
     const query = activeOnly ? { 
-      startTime: { $exists: true },
       currentRoute: { $exists: true }
     } : {};
+
+    console.log('Fetching teams with query:', query);
 
     // Select only necessary fields and transform the data
     const teams = await (Team as Model<ITeam>).find(query)
@@ -37,6 +45,59 @@ export async function GET(request: Request) {
       })
       .lean()
       .exec();
+    
+    console.log(`Found ${teams.length} teams`);
+    
+    // Update uniqueLinks if requested
+    if (updateLinks) {
+      for (const team of teams) {
+        const uniqueLink = team.uniqueLink;
+        
+        // Skip if the uniqueLink is already in the correct format
+        if (uniqueLink.startsWith('https://') && uniqueLink.includes('/game/') && !uniqueLink.includes('/admin/')) {
+          continue;
+        }
+        
+        // Clean the link
+        let cleanLink = uniqueLink;
+        
+        // Remove @ from the beginning if it exists
+        if (cleanLink.startsWith('@')) {
+          cleanLink = cleanLink.substring(1);
+        }
+        
+        // Fix links that contain /admin/game/ instead of /game/
+        if (cleanLink.includes('/admin/game/')) {
+          cleanLink = cleanLink.replace('/admin/game/', '/game/');
+        }
+        
+        // Extract the teamId
+        let teamId;
+        if (cleanLink.includes('/game/')) {
+          teamId = cleanLink.split('/game/')[1];
+        } else if (!cleanLink.includes('/')) {
+          teamId = cleanLink;
+        } else {
+          // Try to extract the last part of the URL
+          const parts = cleanLink.split('/');
+          teamId = parts[parts.length - 1];
+        }
+        
+        // Create the correct URL
+        const formattedLink = `https://galedrun.vercel.app/game/${teamId}`;
+        
+        // Update the team in the database
+        await (Team as Model<ITeam>).updateOne(
+          { _id: team._id },
+          { $set: { uniqueLink: formattedLink } }
+        );
+        
+        // Update the team in the current results
+        team.uniqueLink = formattedLink;
+      }
+      
+      console.log('Updated uniqueLinks for all teams');
+    }
     
     // Transform the data to match our types
     const transformedTeams = teams.map((team: any) => ({
@@ -82,11 +143,14 @@ export async function POST(request: Request) {
     const uniqueId = Math.random().toString(36).substring(2, 15);
     console.log('Generated uniqueId:', uniqueId);
     
+    // Create the URL for the team's unique link
+    const formattedLink = `https://galedrun.vercel.app/game/${uniqueId}`;
+    
     // Create team with only the basic required fields
     const team = await (Team as Model<ITeam>).create({
       name: data.name,
       leaderName: data.leaderName,
-      uniqueLink: uniqueId,
+      uniqueLink: formattedLink,
       currentRoute: new mongoose.Types.ObjectId(data.currentRoute),
       currentPointIndex: 0,
       attempts: 0,

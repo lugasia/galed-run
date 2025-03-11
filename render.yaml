@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: galed-run-ws
+    env: node
+    buildCommand: npm install && npm run build:ws
+    startCommand: npm run start:ws
+    envVars:
+      - key: PORT
+        value: 10000 

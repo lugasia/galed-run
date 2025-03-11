@@ -96,7 +96,9 @@ export default function TeamsPage() {
   };
 
   const handleCopyLink = (link: string) => {
-    navigator.clipboard.writeText(link);
+    // וודא שהלינק הוא מלא
+    const fullLink = getFullLink(link);
+    navigator.clipboard.writeText(fullLink);
     alert('הקישור הועתק ללוח!');
   };
 
@@ -170,6 +172,55 @@ export default function TeamsPage() {
     }
   };
 
+  const getFullLink = (uniqueLink: string) => {
+    // אם הלינק כבר בפורמט הנכון (https://domain/game/id), החזר אותו כמו שהוא
+    if (uniqueLink.startsWith('https://') && uniqueLink.includes('/game/') && !uniqueLink.includes('/admin/')) {
+      return uniqueLink;
+    }
+    
+    // הסר @ מהתחלת הלינק אם קיים
+    let cleanLink = uniqueLink;
+    if (cleanLink.startsWith('@')) {
+      cleanLink = cleanLink.substring(1);
+    }
+    
+    // תקן לינקים שמכילים /admin/game/ במקום /game/
+    if (cleanLink.includes('/admin/game/')) {
+      cleanLink = cleanLink.replace('/admin/game/', '/game/');
+    }
+    
+    // אם הלינק לא מתחיל ב-https://, הוסף אותו
+    if (!cleanLink.startsWith('https://')) {
+      // אם הלינק מתחיל עם הדומיין
+      if (cleanLink.startsWith('galedrun.vercel.app')) {
+        cleanLink = `https://${cleanLink}`;
+      } 
+      // אם הלינק מתחיל עם /game/
+      else if (cleanLink.startsWith('/game/')) {
+        cleanLink = `https://galedrun.vercel.app${cleanLink}`;
+      }
+      // אם הלינק הוא רק המזהה
+      else if (!cleanLink.includes('/')) {
+        cleanLink = `https://galedrun.vercel.app/game/${cleanLink}`;
+      }
+    }
+    
+    return cleanLink;
+  };
+
+  const handleUpdateAllLinks = async () => {
+    try {
+      const response = await fetch('/api/teams?updateLinks=true');
+      if (!response.ok) throw new Error('Failed to update links');
+      const data = await response.json();
+      setTeams(data);
+      alert('כל הלינקים עודכנו בהצלחה!');
+    } catch (error) {
+      console.error('Error updating links:', error);
+      alert('שגיאה בעדכון הלינקים');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -203,13 +254,22 @@ export default function TeamsPage() {
               </h1>
               <p className="text-gray-600 mt-2">ניהול קבוצות ומשתתפים במירוץ</p>
             </div>
-            <button
-              onClick={() => setShowAddTeam(true)}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-medium
-                hover:shadow-lg transform hover:scale-[1.02] transition-all"
-            >
-              הוספת קבוצה
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={handleUpdateAllLinks}
+                className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-2 rounded-xl font-medium
+                  hover:shadow-lg transform hover:scale-[1.02] transition-all"
+              >
+                עדכן לינקים
+              </button>
+              <button
+                onClick={() => setShowAddTeam(true)}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-medium
+                  hover:shadow-lg transform hover:scale-[1.02] transition-all"
+              >
+                הוספת קבוצה
+              </button>
+            </div>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -246,18 +306,30 @@ export default function TeamsPage() {
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
-                      value={team.uniqueLink}
+                      value={getFullLink(team.uniqueLink)}
                       readOnly
                       className="flex-1 px-3 py-1.5 bg-gray-50 rounded-lg text-sm text-gray-600 border border-gray-200"
                     />
                     <button
-                      onClick={() => handleCopyLink(team.uniqueLink)}
+                      onClick={() => handleCopyLink(getFullLink(team.uniqueLink))}
                       className="p-1.5 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100"
+                      title="העתק קישור"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                       </svg>
                     </button>
+                    <a
+                      href={getFullLink(team.uniqueLink)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 text-blue-500 hover:text-blue-700 rounded-lg hover:bg-blue-50"
+                      title="פתח קישור"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
                   </div>
 
                   <div className="flex gap-2">

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import dbConnect from '../../../lib/mongodb';
 import mongoose from 'mongoose';
 import { Team } from '../../../models/Team';
+import Point, { PointSchema } from '../../../models/Point';
+import Route, { RouteSchema } from '../../../models/Route';
 import { WebSocket } from 'ws';
 
 const DISTANCE_THRESHOLD = 50; // meters
@@ -24,6 +26,17 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 export async function POST(request: Request) {
   try {
     await dbConnect();
+    
+    // Make sure Point model is registered
+    if (!mongoose.models.Point) {
+      mongoose.model('Point', PointSchema);
+    }
+    
+    // Make sure Route model is registered
+    if (!mongoose.models.Route) {
+      mongoose.model('Route', RouteSchema);
+    }
+
     const { teamId, code, location } = await request.json();
 
     console.log('Verifying point for teamId:', teamId);
@@ -51,6 +64,24 @@ export async function POST(request: Request) {
 
     if (!team) {
       console.log('Team not found by ID, searching by uniqueLink...');
+      
+      // Extract the teamId from the full URL if it's a full URL
+      let searchId = teamId;
+      
+      // Remove @ from the beginning if it exists
+      if (searchId.startsWith('@')) {
+        searchId = searchId.substring(1);
+      }
+      
+      // Check if the teamId is a full URL
+      if (searchId.includes('/game/')) {
+        // Extract the last part of the URL (the actual teamId)
+        const urlParts = searchId.split('/');
+        searchId = urlParts[urlParts.length - 1];
+        console.log('Extracted teamId from URL:', searchId);
+      }
+      
+      // First try to find by exact uniqueLink match
       team = await (Team as any).findOne({
         uniqueLink: teamId
       }).populate({
@@ -60,6 +91,20 @@ export async function POST(request: Request) {
           model: 'Point'
         }
       });
+      
+      // If not found, try to find by uniqueLink that ends with the teamId
+      if (!team) {
+        console.log('Team not found by exact uniqueLink, trying to find by URL ending with teamId...');
+        team = await (Team as any).findOne({
+          uniqueLink: { $regex: searchId + '$' }
+        }).populate({
+          path: 'currentRoute',
+          populate: {
+            path: 'points',
+            model: 'Point'
+          }
+        });
+      }
       
       if (team) {
         console.log('Team found by uniqueLink');

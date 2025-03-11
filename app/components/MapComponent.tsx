@@ -23,10 +23,11 @@ const userIcon = L.divIcon({
 });
 
 interface MapProps {
-  points: Point[];
   userLocation: [number, number];
-  center: [number, number];
-  zoom: number;
+  currentPoint?: [number, number];
+  visitedPoints?: [number, number][];
+  center?: [number, number];
+  zoom?: number;
 }
 
 function LocationMarker({ userLocation }: { userLocation: [number, number] }) {
@@ -51,7 +52,33 @@ function LocationMarker({ userLocation }: { userLocation: [number, number] }) {
   );
 }
 
-const MapComponent = ({ points, userLocation, center, zoom }: MapProps) => {
+const visitedIcon = L.icon({
+  iconUrl: '/images/marker-icon-green.png',
+  iconRetinaUrl: '/images/marker-icon-2x-green.png',
+  shadowUrl: '/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const currentIcon = L.icon({
+  iconUrl: '/images/marker-icon-red.png',
+  iconRetinaUrl: '/images/marker-icon-2x-red.png',
+  shadowUrl: '/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const MapComponent = ({ 
+  userLocation, 
+  currentPoint, 
+  visitedPoints = [],
+  center,
+  zoom = 15
+}: MapProps) => {
   useEffect(() => {
     // Load Leaflet CSS
     const link = document.createElement('link');
@@ -68,10 +95,13 @@ const MapComponent = ({ points, userLocation, center, zoom }: MapProps) => {
     };
   }, []);
 
+  // אם לא הועבר מרכז, השתמש במיקום המשתמש
+  const mapCenter = center || userLocation;
+
   return (
     <div className="w-full h-full relative">
       <MapContainer
-        center={center}
+        center={mapCenter}
         zoom={zoom}
         style={{ height: '100%', width: '100%' }}
       >
@@ -82,22 +112,34 @@ const MapComponent = ({ points, userLocation, center, zoom }: MapProps) => {
         
         <LocationMarker userLocation={userLocation} />
         
-        {points.map((point) => (
-          point.location && (
-            <Marker
-              key={point._id}
-              position={point.location}
-              icon={pointIcon}
-            >
-              <Popup>
-                <div>
-                  <h3 className="font-bold">{point.name}</h3>
-                  <p className="text-sm">קוד: {point.code}</p>
-                </div>
-              </Popup>
-            </Marker>
-          )
+        {/* נקודות שכבר ביקרו בהן */}
+        {visitedPoints.map((point, index) => (
+          <Marker
+            key={`visited-${index}`}
+            position={point}
+            icon={visitedIcon}
+          >
+            <Popup>
+              <div>
+                <h3 className="font-bold">נקודה שהושלמה</h3>
+              </div>
+            </Popup>
+          </Marker>
         ))}
+        
+        {/* הנקודה הנוכחית */}
+        {currentPoint && (
+          <Marker
+            position={currentPoint}
+            icon={currentIcon}
+          >
+            <Popup>
+              <div>
+                <h3 className="font-bold">הנקודה הנוכחית</h3>
+              </div>
+            </Popup>
+          </Marker>
+        )}
       </MapContainer>
     </div>
   );

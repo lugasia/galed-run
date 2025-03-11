@@ -53,7 +53,7 @@ export default function AdminMapPage() {
   const fetchInitialData = async () => {
     try {
       // Fetch points - these rarely change
-      const pointsResponse = await fetch('/api/points');
+      const pointsResponse = await fetch('/api/points?apiKey=prj_Y5PjW0xeNJLV0hCbA5qG4eVoOcGB');
       if (!pointsResponse.ok) {
         throw new Error('Failed to fetch points');
       }

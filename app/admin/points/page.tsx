@@ -38,7 +38,7 @@ export default function PointsSettings() {
 
   const fetchPoints = async () => {
     try {
-      const response = await fetch('/api/points');
+      const response = await fetch('/api/points?apiKey=prj_Y5PjW0xeNJLV0hCbA5qG4eVoOcGB');
       if (!response.ok) throw new Error('Failed to fetch points');
       const data = await response.json();
       setPoints(data);
@@ -52,7 +52,7 @@ export default function PointsSettings() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/points', {
+      const response = await fetch('/api/points?apiKey=prj_Y5PjW0xeNJLV0hCbA5qG4eVoOcGB', {
         method: editingPoint ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingPoint ? { ...formData, _id: editingPoint._id } : formData),
@@ -71,7 +71,7 @@ export default function PointsSettings() {
     if (!confirm('Are you sure you want to delete this point?')) return;
     
     try {
-      const response = await fetch(`/api/points/${pointId}`, {
+      const response = await fetch(`/api/points/${pointId}?apiKey=prj_Y5PjW0xeNJLV0hCbA5qG4eVoOcGB`, {
         method: 'DELETE',
       });
 

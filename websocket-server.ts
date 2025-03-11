@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const port = process.env.WS_PORT || 3001;
+const port = process.env.PORT || 3001;
 const wss = new WebSocketServer({ port: Number(port) });
 
 wss.on('connection', (ws) => {
@@ -26,6 +26,9 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     console.log('Client disconnected');
   });
+
+  // Send initial connection message
+  ws.send(JSON.stringify({ type: 'CONNECTED' }));
 });
 
 console.log(`WebSocket server started on port ${port}`); 

@@ -1,0 +1,47 @@
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  // Skip authentication in development
+  if (process.env.VERCEL_ENV === 'development') {
+    return NextResponse.next()
+  }
+
+  // Get the pathname of the request (e.g. /api/points)
+  const path = request.nextUrl.pathname
+
+  // Define paths that require authentication
+  const isApiPath = path.startsWith('/api/')
+  const isGamePath = path.startsWith('/api/game/')
+  const isLocationPath = path.startsWith('/api/location/')
+  const isTeamLocationPath = path.startsWith('/api/teams/location/')
+  const isTestPath = path.startsWith('/api/test')
+
+  // Public paths that don't require authentication
+  if (isGamePath || isLocationPath || isTeamLocationPath || isTestPath) {
+    return NextResponse.next()
+  }
+
+  // Check if it's an API path that requires authentication
+  if (isApiPath) {
+    const { searchParams } = new URL(request.url)
+    const token = searchParams.get('token')
+
+    if (!token || token !== process.env.API_SECRET) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Authentication required' }),
+        {
+          status: 401,
+          headers: { 'content-type': 'application/json' },
+        }
+      )
+    }
+  }
+
+  return NextResponse.next()
+}
+
+// Configure the paths that should be checked by the middleware
+export const config = {
+  matcher: '/api/:path*',
+} 
