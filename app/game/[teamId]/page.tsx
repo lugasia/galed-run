@@ -285,9 +285,13 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }
     }
     
-    // תמיד הגדר showQuestion ל-false בכל מקרה
-    // המשתמש צריך ללחוץ על כפתור "הגעתי" כדי לראות את השאלה
-    setShowQuestion(false);
+    // בנקודה הראשונה (אינדקס 0) הצג את השאלה אוטומטית
+    // בשאר הנקודות המשתמש צריך ללחוץ על כפתור "הגעתי" כדי לראות את השאלה
+    if (team.currentPointIndex === 0) {
+      setShowQuestion(true);
+    } else {
+      setShowQuestion(false);
+    }
     
     // בדוק אם יש לקבוצה רמז פעיל
     if (team?.hintRequested) {
