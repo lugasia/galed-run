@@ -285,11 +285,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }
     }
     
-    // תמיד הגדר showQuestion ל-false בעת טעינת הדף הראשונית
-    // אבל לא בעת ריענון נתונים
-    if (loading) {
-      setShowQuestion(false);
-    }
+    // תמיד הגדר showQuestion ל-false בכל מקרה
+    // המשתמש צריך ללחוץ על כפתור "הגעתי" כדי לראות את השאלה
+    setShowQuestion(false);
     
     // בדוק אם יש לקבוצה רמז פעיל
     if (team?.hintRequested) {
