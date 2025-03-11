@@ -63,6 +63,8 @@ export async function POST(request: Request) {
 
     // Find team first by ID, then by uniqueLink
     let team: TeamWithRoute | null = null;
+    let searchId = teamId; // Declare searchId at the top level
+    
     try {
       if (mongoose.Types.ObjectId.isValid(teamId)) {
         console.log('Valid ObjectId, searching by ID...');
@@ -79,13 +81,28 @@ export async function POST(request: Request) {
         }
       }
     } catch (err) {
-      console.log('Error searching by ID:', err);
+      console.error('Error searching by ID:', err);
     }
 
     if (!team) {
       console.log('Team not found by ID, searching by uniqueLink...');
+      
+      // Remove @ from the beginning if it exists
+      if (searchId.startsWith('@')) {
+        searchId = searchId.substring(1);
+      }
+      
+      // Check if the teamId is a full URL
+      if (searchId.includes('/game/')) {
+        // Extract the last part of the URL (the actual teamId)
+        const urlParts = searchId.split('/');
+        searchId = urlParts[urlParts.length - 1];
+        console.log('Extracted teamId from URL:', searchId);
+      }
+      
+      // First try to find by exact uniqueLink match
       team = await (Team as Model<TeamWithRoute>).findOne({
-        uniqueLink: teamId
+        uniqueLink: { $regex: searchId + '$' }
       }).populate({
         path: 'currentRoute',
         populate: {
@@ -103,7 +120,13 @@ export async function POST(request: Request) {
 
     if (!team) {
       console.log('No team found with ID/uniqueLink:', teamId);
-      return NextResponse.json({ message: 'קבוצה לא נמצאה' }, { status: 404 });
+      return NextResponse.json({ 
+        message: 'קבוצה לא נמצאה',
+        debug: {
+          originalTeamId: teamId,
+          searchId: searchId
+        }
+      }, { status: 404 });
     }
 
     // Check if team has already completed the route

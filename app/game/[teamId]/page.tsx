@@ -307,13 +307,17 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
     try {
       const currentPoint = points[team.currentPointIndex];
+      
+      // Extract teamId from uniqueLink
+      const teamId = team.uniqueLink.split('/').pop() || team._id;
+      
       const response = await fetch('/api/game/answer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          teamId: team.uniqueLink,
+          teamId,
           pointId: currentPoint._id,
           answer: selectedAnswer,
         }),
@@ -620,47 +624,33 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
               {message}
             </motion.div>
           )}
-
-          {/* רשימת נקודות שהושלמו */}
-          {completedPoints.length > 0 && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-lg shadow-lg p-3"
-            >
-              <h3 className="font-bold text-sm mb-2">נקודות שהושלמו:</h3>
-              <div className="space-y-1">
-                {completedPoints.map((point, index) => (
-                  <div key={point._id} className="flex items-center text-sm">
-                    <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <span>{point.name}</span>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
         </div>
       </div>
 
-      {/* מפה */}
-      <div className="h-1/4 relative border-t border-gray-200">
-        {userLocation ? (
-          <Map 
-            userLocation={userLocation} 
-            currentPoint={currentPoint ? currentPoint.location : undefined}
-            visitedPoints={team.visitedPoints.map(id => {
-              const point = points.find(p => p._id === id);
-              return point ? point.location : undefined;
-            }).filter(Boolean) as [number, number][]}
-          />
-        ) : (
-          <GpsRequired />
-        )}
-      </div>
+      {/* רשימת נקודות שהושלמו בתחתית העמוד */}
+      {completedPoints.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white border-t border-gray-200 p-4"
+        >
+          <div className="max-w-lg mx-auto">
+            <h3 className="font-bold text-sm mb-2 text-gray-700">טחנות שעברתם:</h3>
+            <div className="flex flex-wrap gap-2">
+              {completedPoints.map((point, index) => (
+                <div key={point._id} className="flex items-center bg-green-50 rounded-full px-3 py-1 text-sm">
+                  <div className="w-4 h-4 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-green-800">{point.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* תצוגת תמונה מוגדלת */}
       {showPointImage && getCurrentPointImage() && (
@@ -672,6 +662,20 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             src={getCurrentPointImage()} 
             alt="תמונת הנקודה" 
             className="max-w-full max-h-full object-contain"
+          />
+        </div>
+      )}
+
+      {/* המשך מעקב מיקום ברקע */}
+      {userLocation && (
+        <div className="hidden">
+          <Map 
+            userLocation={userLocation} 
+            currentPoint={currentPoint ? currentPoint.location : undefined}
+            visitedPoints={team.visitedPoints.map(id => {
+              const point = points.find(p => p._id === id);
+              return point ? point.location : undefined;
+            }).filter(Boolean) as [number, number][]}
           />
         </div>
       )}
