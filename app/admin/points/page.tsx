@@ -1,10 +1,29 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Point } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface PointFormData {
+interface Point {
+  _id: string;
+  id?: number;
+  name: string;
+  location: [number, number];
+  code: string;
+  question: {
+    text: string;
+    options: string[];
+    correctAnswer: string;
+    image?: string;
+  };
+  images?: {
+    zoomIn: string;
+    zoomOut: string;
+  };
+  isAdvanced?: boolean;
+  isFinishPoint?: boolean;
+}
+
+interface PointFormData extends Omit<Point, '_id' | 'id'> {
   name: string;
   code: string;
   location: [number, number];
@@ -12,7 +31,14 @@ interface PointFormData {
     text: string;
     options: string[];
     correctAnswer: string;
+    image?: string;
   };
+  images?: {
+    zoomIn: string;
+    zoomOut: string;
+  };
+  isAdvanced?: boolean;
+  isFinishPoint?: boolean;
 }
 
 export default function PointsSettings() {
@@ -29,7 +55,14 @@ export default function PointsSettings() {
       text: '',
       options: ['', '', '', ''],
       correctAnswer: '',
+      image: ''
     },
+    images: {
+      zoomIn: '',
+      zoomOut: ''
+    },
+    isAdvanced: false,
+    isFinishPoint: false
   });
 
   useEffect(() => {
@@ -93,7 +126,12 @@ export default function PointsSettings() {
         text: point.question.text,
         options: [...point.question.options],
         correctAnswer: point.question.correctAnswer,
+        image: point.question.image || ''
       },
+      images: point.images || {
+        zoomIn: '',
+        zoomOut: ''
+      }
     });
     setIsFormOpen(true);
   };
@@ -108,9 +146,42 @@ export default function PointsSettings() {
         text: '',
         options: ['', '', '', ''],
         correctAnswer: '',
+        image: ''
       },
+      images: {
+        zoomIn: '',
+        zoomOut: ''
+      },
+      isAdvanced: false,
+      isFinishPoint: false
     });
     setIsFormOpen(false);
+  };
+
+  const handleImageUpload = (imageType: 'zoomIn' | 'zoomOut' | 'question', file: File) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      
+      if (imageType === 'question') {
+        setFormData({
+          ...formData,
+          question: {
+            ...formData.question,
+            image: base64String
+          }
+        });
+      } else {
+        setFormData({
+          ...formData,
+          images: {
+            ...formData.images,
+            [imageType]: base64String
+          }
+        });
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   if (isLoading) {
@@ -207,6 +278,40 @@ export default function PointsSettings() {
                   <span className="font-medium">מיקום: </span>
                   {point.location[0].toFixed(6)}, {point.location[1].toFixed(6)}
                 </p>
+                {point.images && (
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    {point.images.zoomIn && (
+                      <div>
+                        <p className="text-sm font-medium mb-1">תמונת זום אין:</p>
+                        <img
+                          src={point.images.zoomIn}
+                          alt="זום אין"
+                          className="w-full h-24 object-cover rounded-lg"
+                        />
+                      </div>
+                    )}
+                    {point.images.zoomOut && (
+                      <div>
+                        <p className="text-sm font-medium mb-1">תמונת זום אאוט:</p>
+                        <img
+                          src={point.images.zoomOut}
+                          alt="זום אאוט"
+                          className="w-full h-24 object-cover rounded-lg"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+                {point.question.image && (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium mb-1">תמונת שאלה:</p>
+                    <img
+                      src={point.question.image}
+                      alt="תמונת שאלה"
+                      className="w-full h-24 object-cover rounded-lg"
+                    />
+                  </div>
+                )}
               </div>
             </motion.div>
           ))}
@@ -351,6 +456,130 @@ export default function PointsSettings() {
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">תמונת זום אין</label>
+                      <div className="space-y-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleImageUpload('zoomIn', file);
+                            }
+                          }}
+                          className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
+                        />
+                        {formData.images?.zoomIn && (
+                          <div className="relative">
+                            <img
+                              src={formData.images.zoomIn}
+                              alt="תצוגה מקדימה של זום אין"
+                              className="w-full h-32 object-cover rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setFormData({
+                                ...formData,
+                                images: {
+                                  ...formData.images,
+                                  zoomIn: ''
+                                }
+                              })}
+                              className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">תמונת זום אאוט</label>
+                      <div className="space-y-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleImageUpload('zoomOut', file);
+                            }
+                          }}
+                          className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
+                        />
+                        {formData.images?.zoomOut && (
+                          <div className="relative">
+                            <img
+                              src={formData.images.zoomOut}
+                              alt="תצוגה מקדימה של זום אאוט"
+                              className="w-full h-32 object-cover rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setFormData({
+                                ...formData,
+                                images: {
+                                  ...formData.images,
+                                  zoomOut: ''
+                                }
+                              })}
+                              className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">תמונת שאלה (אופציונלי)</label>
+                    <div className="space-y-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleImageUpload('question', file);
+                          }
+                        }}
+                        className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors"
+                      />
+                      {formData.question.image && (
+                        <div className="relative">
+                          <img
+                            src={formData.question.image}
+                            alt="תצוגה מקדימה של תמונת השאלה"
+                            className="w-full h-32 object-cover rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFormData({
+                              ...formData,
+                              question: {
+                                ...formData.question,
+                                image: ''
+                              }
+                            })}
+                            className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex justify-end space-x-4 rtl:space-x-reverse">

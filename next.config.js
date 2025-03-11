@@ -29,10 +29,7 @@ const nextConfig = {
         destination: '/api/:path*',
       },
     ]
-  },
-  skipMiddleware: true,
-  skipTrailingSlashRedirect: true,
-  skipDefaultLocale: true
+  }
 }
 
 module.exports = nextConfig 
