@@ -458,24 +458,19 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         setShowQuestion(false); // הסתר את השאלה אחרי תשובה נכונה
         setDisabledOptions([]); // איפוס האפשרויות החסומות
         
-        // Get current point and next point
-        const nextPoint = points[team.currentPointIndex + 1];
-        
-        // Check if current point is the pub
-        if (currentPoint.code === '1011' || currentPoint.isFinishPoint) {
-            setMessage('צדקת! לחץ על "הגעתי! עצור את השעון" כדי לסיים את המשחק');
-        } 
-        // If there is a next point, tell the user to run to it
-        else if (nextPoint) {
-            setMessage(`צדקת! רוץ לנקודה "${nextPoint.name}"`);
+        // אם זו הנקודה לפני האחרונה (לפני הפאב)
+        if (team.currentPointIndex === points.length - 2) {
+          setMessage('צדקת! רוץ לנקודת הסיום "סנטה פאב"');
+        } else {
+          // בכל נקודה אחרת, כולל הפאב
+          setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
         }
         
-        // Update visited points
+        // עדכון הנקודות שהושלמו
         const updatedTeam = { ...team };
         updatedTeam.visitedPoints = [...(team.visitedPoints || []), currentPoint._id];
         setTeam(updatedTeam);
         
-        // רענן את נתוני הקבוצה
         await fetchTeam();
       } else {
         // תשובה שגויה
