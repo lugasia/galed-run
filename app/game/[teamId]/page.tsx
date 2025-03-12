@@ -412,7 +412,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
         setSelectedAnswer('');
         setCurrentHintLevel(0); // איפוס רמת הרמז
-        setShowQuestion(false); // הסתר את השאלה אחרי תשובה נכונה
         setDisabledOptions([]); // איפוס האפשרויות החסומות
         
         // Check if this is the pub point
