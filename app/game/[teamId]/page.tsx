@@ -367,7 +367,11 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
       if (data.correct) {
         // תשובה נכונה - even for the last point, don't complete the game yet
-        setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
+        if (isFinishPoint) {
+          setMessage(`צדקת! רוץ לנקודת סיום "פאב"`);
+        } else {
+          setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
+        }
         
         setSelectedAnswer('');
         setCurrentHintLevel(0); // איפוס רמת הרמז
