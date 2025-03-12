@@ -510,46 +510,22 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     const isFinalPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
     const hasAnsweredCorrectly = team?.visitedPoints?.includes(currentPoint?._id);
 
-    // Debug logs
-    console.log('handleRevealQuestion debug:', {
-        isFinalPoint,
-        currentPointCode: currentPoint?.code,
-        isFinishPoint: currentPoint?.isFinishPoint,
-        hasAnsweredCorrectly,
-        currentPointId: currentPoint?._id,
-        visitedPoints: team?.visitedPoints,
-        teamId: team?._id,
-        currentPointIndex: team?.currentPointIndex,
-        totalPoints: points?.length,
-        gameCompleted,
-        elapsedTime,
-        isRouteCompleted: team?.currentPointIndex >= points.length
-    });
-
     if (isFinalPoint && hasAnsweredCorrectly) {
-        console.log('Final point conditions met, completing game');
-        
-        // Capture the final time before any state changes
+        // Capture the final time
         const capturedTime = elapsedTime;
-        console.log('Final time captured:', capturedTime);
         
-        // Stop the timer immediately
+        // Stop the timer
         if (timerRef.current) {
             clearInterval(timerRef.current);
             timerRef.current = null;
-            console.log('Timer stopped');
         }
 
-        // Set states in the correct order
+        // Set states
         setFinalTime(capturedTime);
         setGameCompleted(true);
         
-        // Create a game completion event
         try {
-            // Extract teamId from uniqueLink or use _id as fallback
             const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
-            console.log('Using teamId for completion:', teamId);
-            
             const response = await fetch(`/api/game/${teamId}/complete`, {
                 method: 'POST',
                 headers: {
@@ -563,24 +539,19 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             });
 
             if (!response.ok) {
-                console.error('Failed to save completion time:', response.status);
                 throw new Error('Failed to save completion time');
             }
             
-            console.log('Game completion saved successfully');
-            
-            // Update the message to show completion with the final time
             setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
         } catch (error) {
             console.error('Error saving completion time:', error);
-            // Even if saving fails, still show completion message with time
             setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
         }
         
-        return; // Don't proceed to show the question
+        return;
     }
     
-    // For all other points, show the question and only clear message if not at final point
+    // For all other points, show the question
     setShowQuestion(true);
     if (!isFinalPoint) {
         setMessage(null);
@@ -879,7 +850,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                         transition-all transform hover:scale-[1.02] active:scale-[0.98]"
                   >
                     {isFinishPoint && team?.visitedPoints?.includes(currentPoint?._id)
-                        ? 'הגעתי! עצור את השעון' 
+                        ? 'הגעתי! עצור את השעון!' 
                         : 'הגעתי! חשוף שאלה'}
                   </button>
                 </motion.div>
