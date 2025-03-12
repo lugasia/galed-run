@@ -45,6 +45,16 @@ async function requestAutomaticHint(teamId: string, pointId: string, hintLevel: 
   }
 }
 
+// Add logic to track completion times and update messages based on rankings
+
+// Example logic (pseudo-code):
+// 1. Store completion time for each team
+// 2. Compare times to determine rankings
+// 3. Update messages based on rankings
+
+// Pseudo-code implementation
+const completionTimes = {}; // Store team completion times
+
 export async function POST(request: Request) {
   try {
     await dbConnect();
@@ -334,9 +344,26 @@ export async function POST(request: Request) {
         // Continue even if event creation fails
       }
 
+      const startTime = typeof team.startTime === 'string' ? new Date(team.startTime) : team.startTime;
+      if (!(startTime instanceof Date) || isNaN(startTime.getTime())) {
+        console.error('Invalid start time for team:', team._id);
+        return NextResponse.json({ message: 'שגיאה בעיבוד הזמן' }, { status: 500 });
+      }
+      const completionTime = Date.now() - startTime.getTime();
+      completionTimes[team._id] = completionTime;
+
+      // Determine rankings
+      const sortedTeams = Object.entries(completionTimes).sort((a, b) => a[1] - b[1]);
+      const rank = sortedTeams.findIndex(([id]) => id === team._id) + 1;
+
+      let message = 'כל הכבוד! סיימתם את המסלול';
+      if (rank === 1) message += ' - מקום ראשון';
+      else if (rank === 2) message += ' - מקום שני';
+      else if (rank === 3) message += ' - מקום שלישי';
+
       return NextResponse.json({ 
         correct: true,
-        message: 'כל הכבוד! סיימתם את המסלול',
+        message,
         isLastPoint: true
       });
     } else {
