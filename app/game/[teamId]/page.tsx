@@ -156,6 +156,33 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     }
   }, [team?.startTime, gameCompleted]);
 
+  // Add a new effect to handle game completion
+  useEffect(() => {
+    if (gameCompleted && team?.startTime) {
+      // Make sure the timer is stopped and fixed at the completion time
+      const finalTime = elapsedTime;
+      console.log('Game completed, stopping timer at:', formatTime(finalTime));
+      
+      // Save the completion time to the server
+      try {
+        const teamId = team?.uniqueLink.split('/').pop() || team?._id;
+        if (teamId) {
+          fetch(`/api/teams/${teamId}/complete`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              completionTime: finalTime,
+            }),
+          });
+        }
+      } catch (error) {
+        console.error('Error saving completion time:', error);
+      }
+    }
+  }, [gameCompleted]);
+
   useEffect(() => {
     if (penaltyEndTime) {
       const interval = setInterval(() => {
@@ -384,29 +411,16 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     // If this is the finish point and the player has already answered the question correctly
     // (indicated by the point being in completedPoints), then complete the game
     if (isFinishPoint && completedPoints.some(p => p._id === currentPoint?._id)) {
-      setGameCompleted(true);
-      setMessage('כל הכבוד! סיימתם את המסלול');
-      // עצור את השעון
+      // Capture the final time before setting gameCompleted
       const finalTime = elapsedTime;
+      
+      // Set game as completed - this will trigger the useEffect that stops the timer
+      setGameCompleted(true);
+      
+      // Set the final time explicitly to ensure it doesn't change
       setElapsedTime(finalTime);
       
-      // Save the completion time to the server
-      try {
-        const teamId = team?.uniqueLink.split('/').pop() || team?._id;
-        if (teamId) {
-          fetch(`/api/teams/${teamId}/complete`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              completionTime: finalTime,
-            }),
-          });
-        }
-      } catch (error) {
-        console.error('Error saving completion time:', error);
-      }
+      setMessage('כל הכבוד! סיימתם את המסלול');
     }
   };
 
@@ -499,7 +513,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   const currentPoint = team && points.length > 0 ? points[team.currentPointIndex] : null;
   
   // Check if the route is completed
-  const isRouteCompleted = team?.currentPointIndex >= points.length || gameCompleted;
+  const isRouteCompleted = gameCompleted || (team?.currentPointIndex >= points.length);
   
   // Check if the current point is the finish point (point with code 1011)
   const isFinishPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
