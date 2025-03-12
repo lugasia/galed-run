@@ -495,11 +495,12 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             visitedPoints: team?.visitedPoints,
             currentPointIndex: team?.currentPointIndex
         },
-        elapsedTime
+        elapsedTime,
+        gameCompleted
     });
 
     // אם זה הפאב וענו נכון על השאלה, לחיצה על הכפתור תסיים את המשחק
-    if (isFinalPoint && hasAnsweredCorrectly) {
+    if (isFinalPoint && hasAnsweredCorrectly && !gameCompleted) {
         const capturedTime = elapsedTime;
         console.log('Attempting to complete game with time:', capturedTime);
         
@@ -529,52 +530,29 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             console.log('Completion response status:', response.status);
             
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Completion error:', errorData);
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
-            const responseData = await response.json();
-            console.log('Completion response:', responseData);
             
             // רק אחרי שהשמירה הצליחה, נעדכן את המצב
             setFinalTime(capturedTime);
             setGameCompleted(true);
             setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
+            
+            // רענון נתוני הקבוצה
+            await fetchTeam();
         } catch (error) {
             console.error('Error saving completion time:', error);
-            // במקרה של שגיאה, ננסה שוב לשמור
-            try {
-                await fetchTeam();
-                const retryTeamId = team?.uniqueLink?.split('/').pop() || team?._id;
-                console.log('Retrying completion request for teamId:', retryTeamId);
-                
-                const retryResponse = await fetch(`/api/game/${retryTeamId}/complete`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        completionTime: capturedTime,
-                        finalTime: capturedTime,
-                        completedAt: new Date().toISOString()
-                    }),
-                });
-                
-                if (retryResponse.ok) {
-                    setFinalTime(capturedTime);
-                    setGameCompleted(true);
-                    setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
-                } else {
-                    throw new Error('Retry failed');
-                }
-            } catch (retryError) {
-                console.error('Retry also failed:', retryError);
-                // אם גם הניסיון השני נכשל, נציג הודעת שגיאה למשתמש
-                setMessage('שגיאה בשמירת זמן הסיום. אנא נסו שוב.');
+            // במקרה של שגיאה, נחזיר את הטיימר למצב פעיל
+            if (!timerRef.current) {
+                timerRef.current = setInterval(() => {
+                    const now = new Date().getTime();
+                    const start = new Date(team!.startTime!).getTime();
+                    setElapsedTime(now - start);
+                }, 1000);
             }
+            setMessage('שגיאה בשמירת זמן הסיום. אנא נסו שוב.');
         }
-    } else {
+    } else if (!gameCompleted) {
         // בכל נקודה אחרת, הצג את השאלה
         setShowQuestion(true);
         setMessage(null);
@@ -871,11 +849,14 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                   </p>
                   <button
                     onClick={handleRevealQuestion}
-                    className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg font-medium
-                        transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                    className={`w-full font-medium transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
+                      isFinishPoint && team?.visitedPoints?.includes(currentPoint?._id)
+                        ? 'bg-red-600 hover:bg-red-700 text-white py-8 px-4 rounded-full shadow-lg text-xl animate-pulse' 
+                        : 'bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg'
+                    }`}
                   >
                     {isFinishPoint && team?.visitedPoints?.includes(currentPoint?._id)
-                        ? 'הגעתי! עצור את השעון!' 
+                        ? 'הגעתי! עצור את השעון! ⏱️' 
                         : 'הגעתי! חשוף שאלה'}
                   </button>
                 </motion.div>
