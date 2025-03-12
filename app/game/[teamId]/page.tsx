@@ -839,8 +839,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`border-r-4 p-3 rounded-lg text-sm ${
-                message.includes('צדקת') 
+              onClick={() => message.includes('נכון מאד') ? null : setMessage(null)}
+              className={`border-r-4 p-3 rounded-lg text-sm cursor-pointer ${
+                message.includes('צדקת') || message.includes('נכון מאד')
                   ? 'bg-green-50 border-green-500 text-green-800' 
                   : message.includes('טעית') 
                     ? 'bg-red-50 border-red-500 text-red-800'
@@ -848,6 +849,11 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
               }`}
             >
               {message}
+              {(message.includes('צדקת') || message.includes('נכון מאד')) && (
+                <div className="mt-2 text-xs text-gray-500">
+                  לחץ על "הגעתי" להמשך
+                </div>
+              )}
             </motion.div>
           )}
         </div>
