@@ -648,7 +648,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     );
   }
 
-  const isRouteCompleted = gameCompleted || (team?.currentPointIndex >= points.length);
+  const isRouteCompleted = gameCompleted;
   
   if (isRouteCompleted) {
     return (
