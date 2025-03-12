@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import GpsRequired from '../../components/GpsRequired';
@@ -81,6 +81,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   const [team, setTeam] = useState<Team | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const [finalTime, setFinalTime] = useState<number | null>(null); // Store final time separately
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [showQuestion, setShowQuestion] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState('');
@@ -93,6 +94,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   const [completedPoints, setCompletedPoints] = useState<Point[]>([]);
   const [disabledOptions, setDisabledOptions] = useState<string[]>([]);
   const [gameCompleted, setGameCompleted] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null); // Reference to store the timer interval
 
   useEffect(() => {
     fetchTeam();
@@ -145,32 +147,76 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     return () => clearInterval(interval);
   }, [team?.uniqueLink]);
 
+  // Completely rewritten timer logic
   useEffect(() => {
+    // Clear any existing timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    // Only start timer if game is not completed and team has started
     if (team?.startTime && !gameCompleted) {
-      const interval = setInterval(() => {
+      console.log('Starting timer, gameCompleted:', gameCompleted);
+      
+      // Set initial time
+      const now = new Date().getTime();
+      const start = new Date(team.startTime).getTime();
+      setElapsedTime(now - start);
+      
+      // Start interval
+      timerRef.current = setInterval(() => {
         const now = new Date().getTime();
         const start = new Date(team.startTime).getTime();
         setElapsedTime(now - start);
-      }, 1000); // Update every second since we don't need milliseconds anymore
-      return () => clearInterval(interval);
+      }, 1000);
+      
+      // Cleanup function
+      return () => {
+        console.log('Cleaning up timer');
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      };
     }
   }, [team?.startTime, gameCompleted]);
 
-  // Effect to handle game completion
+  // Separate effect to handle game completion
   useEffect(() => {
     if (gameCompleted) {
-      console.log('Game completed effect triggered, stopping timer');
+      console.log('Game completed effect triggered');
       
-      // Clear any interval that might be updating the elapsed time
-      const intervalId = setInterval(() => {}, 1000);
-      clearInterval(intervalId);
+      // Stop the timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+        console.log('Timer stopped');
+      }
       
-      // Make sure we're showing the completion screen
-      if (team?.currentPointIndex < points.length && isFinishPoint) {
-        console.log('Forcing route completion view');
+      // If we have a final time, use it, otherwise use current elapsed time
+      const timeToSave = finalTime !== null ? finalTime : elapsedTime;
+      
+      // Save completion time to server
+      const teamId = team?.uniqueLink.split('/').pop() || team?._id;
+      if (teamId) {
+        console.log('Saving completion time to server:', timeToSave);
+        fetch(`/api/teams/${teamId}/complete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            completionTime: timeToSave,
+          }),
+        }).then(response => {
+          console.log('Completion time saved, response status:', response.status);
+        }).catch(error => {
+          console.error('Error in completion time response:', error);
+        });
       }
     }
-  }, [gameCompleted]);
+  }, [gameCompleted, finalTime, elapsedTime, team]);
 
   useEffect(() => {
     if (penaltyEndTime) {
@@ -404,31 +450,21 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       console.log('Final point reached, completing game');
       
       // Capture the final time
-      const finalTime = elapsedTime;
+      const capturedTime = elapsedTime;
+      console.log('Final time captured:', capturedTime);
       
-      // Set the final time explicitly to ensure it doesn't change
-      setElapsedTime(finalTime);
+      // Store the final time
+      setFinalTime(capturedTime);
       
-      // Mark the game as completed
-      setGameCompleted(true);
-      
-      // Save the completion time to the server
-      try {
-        const teamId = team?.uniqueLink.split('/').pop() || team?._id;
-        if (teamId) {
-          fetch(`/api/teams/${teamId}/complete`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              completionTime: finalTime,
-            }),
-          });
-        }
-      } catch (error) {
-        console.error('Error saving completion time:', error);
+      // Stop the timer immediately
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+        console.log('Timer stopped immediately');
       }
+      
+      // Mark the game as completed - this will trigger the completion effect
+      setGameCompleted(true);
       
       return; // Don't proceed to show the question
     }
@@ -537,7 +573,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       <div className="flex flex-col h-screen">
         <div className="bg-white shadow-md p-2">
           <div className="text-center text-2xl font-bold">
-            {formatTime(elapsedTime)}
+            {formatTime(finalTime !== null ? finalTime : elapsedTime)}
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center p-2">
@@ -545,7 +581,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             <h1 className="text-3xl font-bold mb-4">סיימתם את המסלול!</h1>
             <p className="text-xl text-gray-600 mb-4">כל הכבוד! השלמתם את כל הנקודות בהצלחה.</p>
             <div className="text-2xl font-bold mb-4 bg-green-50 p-4 rounded-lg text-green-800">
-              זמן סופי: {formatTime(elapsedTime)}
+              זמן סופי: {formatTime(finalTime !== null ? finalTime : elapsedTime)}
             </div>
             <p className="text-sm text-gray-500">תודה על השתתפותכם במשחק!</p>
           </div>
@@ -727,7 +763,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                       transition-all transform hover:scale-[1.02] active:scale-[0.98]"
                   >
                     {isFinishPoint && completedPoints.some(p => p._id === currentPoint?._id) 
-                      ? 'הגעתי לפאב! סיים משחק' 
+                      ? 'הגעתי! עצור את השעון!' 
                       : 'הגעתי! חשוף שאלה'}
                   </button>
                 </motion.div>
