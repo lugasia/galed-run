@@ -35,12 +35,19 @@ const EventCard = ({ event }: { event: EventWithDetails }) => {
   const getEventTypeText = (type: EventType) => {
     switch (type) {
       case 'ROUTE_STARTED':
-        return 'התחיל מסלול';
+        return event.details?.restarted ? 'התחיל מחדש' : 'התחיל';
       case 'ROUTE_COMPLETED':
-        return 'סיים מסלול';
+        return 'סיים';
       default:
         return type;
     }
+  };
+
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -58,7 +65,7 @@ const EventCard = ({ event }: { event: EventWithDetails }) => {
               <p className="text-sm text-gray-600">{getEventTypeText(event.type)}</p>
             </div>
             <span className="text-xs text-gray-500">
-              {new Date(event.createdAt).toLocaleString('he-IL')}
+              {new Date(event.createdAt).toLocaleTimeString('he-IL')}
             </span>
           </div>
           <div className="mt-3 space-y-2">
@@ -68,9 +75,9 @@ const EventCard = ({ event }: { event: EventWithDetails }) => {
                 <span className="mr-1">{event.route.name}</span>
               </div>
             )}
-            {event.details && event.type === 'ROUTE_COMPLETED' && (
+            {event.details?.finalTime && event.type === 'ROUTE_COMPLETED' && (
               <div className="text-sm text-gray-600 mt-2">
-                זמן סופי: {formatTime(event.details.finalTime)}
+                זמן: {formatTime(event.details.finalTime)}
               </div>
             )}
           </div>
@@ -78,14 +85,6 @@ const EventCard = ({ event }: { event: EventWithDetails }) => {
       </div>
     </motion.div>
   );
-};
-
-const formatTime = (ms: number) => {
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
 
 export default function EventsPage() {
