@@ -21,6 +21,13 @@ interface EventWithDetails {
 }
 
 const EventCard = ({ event }: { event: EventWithDetails }) => {
+  console.log('Event data:', {
+    type: event.type,
+    details: event.details,
+    finalTime: event.details?.finalTime,
+    createdAt: event.createdAt
+  });
+
   const getEventIcon = (type: EventType) => {
     switch (type) {
       case 'ROUTE_STARTED':
@@ -44,10 +51,16 @@ const EventCard = ({ event }: { event: EventWithDetails }) => {
   };
 
   const formatTime = (ms: number) => {
+    if (!ms || isNaN(ms)) {
+      console.log('Invalid time value:', ms);
+      return '00:00';
+    }
     const totalSeconds = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    console.log('Formatting time:', { ms, totalSeconds, minutes, seconds, formattedTime });
+    return formattedTime;
   };
 
   return (
@@ -75,9 +88,9 @@ const EventCard = ({ event }: { event: EventWithDetails }) => {
                 <span className="mr-1">{event.route.name}</span>
               </div>
             )}
-            {event.details?.finalTime && event.type === 'ROUTE_COMPLETED' && (
+            {event.type === 'ROUTE_COMPLETED' && (
               <div className="text-sm text-gray-600 mt-2">
-                זמן: {formatTime(event.details.finalTime)}
+                זמן: {formatTime(event.details?.finalTime)}
               </div>
             )}
           </div>

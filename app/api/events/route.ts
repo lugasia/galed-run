@@ -45,10 +45,16 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .limit(100)
       .populate('team', 'name leaderName')
-      .populate('point', 'name code')
       .populate('route', 'name')
       .lean()
       .exec();
+
+    console.log('Fetched events:', events.map(event => ({
+      type: event.type,
+      details: event.details,
+      finalTime: event.details?.finalTime,
+      createdAt: event.createdAt
+    })));
 
     const validEvents = events.filter(event => event.team);
     return NextResponse.json(validEvents);
