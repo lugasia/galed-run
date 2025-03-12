@@ -501,7 +501,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         
         try {
             const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
-            await fetch(`/api/game/${teamId}/complete`, {
+            const response = await fetch(`/api/game/${teamId}/complete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -513,10 +513,17 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                 }),
             });
             
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
         } catch (error) {
             console.error('Error saving completion time:', error);
+            // Even if saving fails, still show completion message
             setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
+            // Try to fetch team data to ensure UI is updated
+            await fetchTeam();
         }
     } else {
         // בכל נקודה אחרת, הצג את השאלה
