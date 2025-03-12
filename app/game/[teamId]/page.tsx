@@ -405,11 +405,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   };
 
   const handleRevealQuestion = () => {
-    setShowQuestion(true);
-    setMessage(null);
-    
     // If this is the finish point and the player has already answered the question correctly
-    // (indicated by the point being in completedPoints), then complete the game
+    // (indicated by the point being in completedPoints), then complete the game immediately
     if (isFinishPoint && completedPoints.some(p => p._id === currentPoint?._id)) {
       // Capture the final time before setting gameCompleted
       const finalTime = elapsedTime;
@@ -421,7 +418,12 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       setElapsedTime(finalTime);
       
       setMessage('כל הכבוד! סיימתם את המסלול');
+      return; // Don't proceed to show the question
     }
+    
+    // For all other points, show the question
+    setShowQuestion(true);
+    setMessage(null);
   };
 
   const getCurrentPoint = () => {
@@ -712,7 +714,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                       transition-all transform hover:scale-[1.02] active:scale-[0.98]"
                   >
                     {isFinishPoint && completedPoints.some(p => p._id === currentPoint?._id) 
-                      ? 'סיים משחק' 
+                      ? 'הגעתי לפאב! סיים משחק' 
                       : 'הגעתי! חשוף שאלה'}
                   </button>
                 </motion.div>
