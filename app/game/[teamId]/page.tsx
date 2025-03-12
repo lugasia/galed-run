@@ -420,7 +420,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
     try {
       const currentPoint = points[team.currentPointIndex];
-      const isFinalPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
       
       // Extract teamId from uniqueLink
       const teamId = team.uniqueLink.split('/').pop() || team._id;
@@ -540,7 +539,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
         }
     } else {
-        // For all other points, or if at pub but haven't answered yet
+        // For all other points, show the question
         setShowQuestion(true);
         setMessage(null);
     }
