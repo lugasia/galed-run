@@ -420,6 +420,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
     try {
       const currentPoint = points[team.currentPointIndex];
+      const isFinalPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
       
       // Extract teamId from uniqueLink
       const teamId = team.uniqueLink.split('/').pop() || team._id;
@@ -500,6 +501,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     const isFinalPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
     const hasAnsweredCorrectly = team?.visitedPoints?.includes(currentPoint?._id);
 
+    // If at pub and answered correctly, clicking the button will complete the game
     if (isFinalPoint && hasAnsweredCorrectly) {
         // Capture the final time
         const capturedTime = elapsedTime;
@@ -510,7 +512,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             timerRef.current = null;
         }
 
-        // Set states
+        // Set final time and complete the game
         setFinalTime(capturedTime);
         setGameCompleted(true);
         
@@ -537,13 +539,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             console.error('Error saving completion time:', error);
             setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
         }
-        
-        return;
-    }
-    
-    // For all other points, show the question
-    setShowQuestion(true);
-    if (!isFinalPoint) {
+    } else {
+        // For all other points, or if at pub but haven't answered yet
+        setShowQuestion(true);
         setMessage(null);
     }
   };
@@ -827,7 +825,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                   className="bg-white rounded-lg shadow-lg p-4 text-center"
                 >
                   <h2 className="text-xl font-bold mb-2">
-                    הגעתם לנקודה?
+                    {isFinishPoint && team?.visitedPoints?.includes(currentPoint?._id)
+                        ? 'הגעתם לנקודת הסיום?' 
+                        : 'הגעתם לנקודה?'}
                   </h2>
                   <p className="text-gray-600 mb-3">
                     {isFinishPoint && team?.visitedPoints?.includes(currentPoint?._id)
