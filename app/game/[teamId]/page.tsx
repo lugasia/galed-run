@@ -156,29 +156,18 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     }
   }, [team?.startTime, gameCompleted]);
 
-  // Add a new effect to handle game completion
+  // Effect to handle game completion
   useEffect(() => {
-    if (gameCompleted && team?.startTime) {
-      // Make sure the timer is stopped and fixed at the completion time
-      const finalTime = elapsedTime;
-      console.log('Game completed, stopping timer at:', formatTime(finalTime));
+    if (gameCompleted) {
+      console.log('Game completed effect triggered, stopping timer');
       
-      // Save the completion time to the server
-      try {
-        const teamId = team?.uniqueLink.split('/').pop() || team?._id;
-        if (teamId) {
-          fetch(`/api/teams/${teamId}/complete`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              completionTime: finalTime,
-            }),
-          });
-        }
-      } catch (error) {
-        console.error('Error saving completion time:', error);
+      // Clear any interval that might be updating the elapsed time
+      const intervalId = setInterval(() => {}, 1000);
+      clearInterval(intervalId);
+      
+      // Make sure we're showing the completion screen
+      if (team?.currentPointIndex < points.length && isFinishPoint) {
+        console.log('Forcing route completion view');
       }
     }
   }, [gameCompleted]);
@@ -409,19 +398,38 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   };
 
   const handleRevealQuestion = () => {
-    // If this is the finish point and the player has already answered the question correctly
-    // (indicated by the point being in completedPoints), then complete the game immediately
+    // For the final point (Pub), if the player has already answered correctly,
+    // immediately complete the game and show the completion screen
     if (isFinishPoint && completedPoints.some(p => p._id === currentPoint?._id)) {
-      // Capture the final time before setting gameCompleted
-      const finalTime = elapsedTime;
+      console.log('Final point reached, completing game');
       
-      // Set game as completed - this will trigger the useEffect that stops the timer
-      setGameCompleted(true);
+      // Capture the final time
+      const finalTime = elapsedTime;
       
       // Set the final time explicitly to ensure it doesn't change
       setElapsedTime(finalTime);
       
-      setMessage('כל הכבוד! סיימתם את המסלול');
+      // Mark the game as completed
+      setGameCompleted(true);
+      
+      // Save the completion time to the server
+      try {
+        const teamId = team?.uniqueLink.split('/').pop() || team?._id;
+        if (teamId) {
+          fetch(`/api/teams/${teamId}/complete`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              completionTime: finalTime,
+            }),
+          });
+        }
+      } catch (error) {
+        console.error('Error saving completion time:', error);
+      }
+      
       return; // Don't proceed to show the question
     }
     
@@ -518,7 +526,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
   const currentPoint = team && points.length > 0 ? points[team.currentPointIndex] : null;
   
-  // Check if the route is completed
+  // Check if the route is completed - prioritize gameCompleted state
   const isRouteCompleted = gameCompleted || (team?.currentPointIndex >= points.length);
   
   // Check if the current point is the finish point (point with code 1011)
@@ -533,12 +541,13 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center p-2">
-          <div className="text-center max-w-md w-full bg-white rounded-lg shadow-lg p-4">
-            <h1 className="text-2xl font-bold mb-2">סיימתם את המסלול!</h1>
-            <p className="text-gray-600 mb-2">כל הכבוד!</p>
-            <div className="text-xl font-bold">
+          <div className="text-center max-w-md w-full bg-white rounded-lg shadow-lg p-6">
+            <h1 className="text-3xl font-bold mb-4">סיימתם את המסלול!</h1>
+            <p className="text-xl text-gray-600 mb-4">כל הכבוד! השלמתם את כל הנקודות בהצלחה.</p>
+            <div className="text-2xl font-bold mb-4 bg-green-50 p-4 rounded-lg text-green-800">
               זמן סופי: {formatTime(elapsedTime)}
             </div>
+            <p className="text-sm text-gray-500">תודה על השתתפותכם במשחק!</p>
           </div>
         </div>
       </div>
