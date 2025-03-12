@@ -353,8 +353,8 @@ export async function POST(request: Request) {
       completionTimes[team._id] = completionTime;
 
       // Determine rankings
-      const sortedTeams = Object.entries(completionTimes).sort((a, b) => a[1] - b[1]);
-      const rank = sortedTeams.findIndex(([id]) => id === team._id) + 1;
+      const sortedTeams = Object.entries(completionTimes as Record<string, number>).sort((a, b) => (a[1] as number) - (b[1] as number));
+      const rank = sortedTeams.findIndex(([id]) => id === team._id.toString()) + 1;
 
       let message = 'כל הכבוד! סיימתם את המסלול';
       if (rank === 1) message += ' - מקום ראשון';
