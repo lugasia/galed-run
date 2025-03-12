@@ -70,8 +70,8 @@ export default function RoutesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
-  const [penaltyTime, setPenaltyTime] = useState(1);
-  const [maxAttempts, setMaxAttempts] = useState(3);
+  const [penaltyTime, setPenaltyTime] = useState(0.5);
+  const [maxAttempts, setMaxAttempts] = useState(2);
 
   const fetchRoutes = async () => {
     try {
