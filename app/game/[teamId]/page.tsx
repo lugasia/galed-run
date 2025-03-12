@@ -362,17 +362,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           (point: Point) => team.visitedPoints.includes(point._id)
         );
         setCompletedPoints(completed);
-
-        // Check if all points are completed and game is not marked as completed
-        if (completed.length === team.currentRoute.points.length && !gameCompleted) {
-          console.log('All points completed, marking game as completed');
-          setGameCompleted(true);
-          setFinalTime(elapsedTime);
-          if (timerRef.current) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-          }
-        }
       }
     }
     
