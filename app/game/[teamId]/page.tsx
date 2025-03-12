@@ -417,7 +417,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         
         // Check if this is the pub point
         if (currentPoint.code === '1011' || currentPoint.isFinishPoint) {
-            setMessage('צדקת! לחץ על "הגעתי" כדי לסיים את המשחק');
+            setMessage('נכון מאד! רוץ לפאב');
         } else {
             setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
         }
