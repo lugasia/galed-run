@@ -252,8 +252,16 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
   const fetchTeam = async () => {
     try {
+      console.log('Fetching team data...');
       // נסה לקבל קבוצה לפי המזהה
-      const response = await fetch(`/api/game/${params.teamId}`);
+      const response = await fetch(`/api/game/${params.teamId}`, {
+        // Add cache control headers to prevent caching
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       
       if (!response.ok) {
         console.error('Error response from server:', response.status, response.statusText);
@@ -272,7 +280,13 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           // אם לא נמצאה קבוצה, נסה לקבל קבוצה פעילה כלשהי
           if (response.status === 404) {
             console.log('Team not found, trying to get any active team');
-            const activeTeamsResponse = await fetch('/api/teams/active');
+            const activeTeamsResponse = await fetch('/api/teams/active', {
+              headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+              }
+            });
             
             if (activeTeamsResponse.ok) {
               const activeTeamsData = await activeTeamsResponse.json();
@@ -285,7 +299,13 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                 console.log('Using first active team:', firstActiveTeam);
                 
                 // נסה לקבל את הקבוצה המלאה
-                const teamResponse = await fetch(`/api/game/${firstActiveTeam._id}`);
+                const teamResponse = await fetch(`/api/game/${firstActiveTeam._id}`, {
+                  headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                  }
+                });
                 
                 if (teamResponse.ok) {
                   const teamData = await teamResponse.json();
@@ -303,6 +323,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           
           setMessage(errorData.message || 'קבוצה לא נמצאה. בדוק את הקישור שהזנת.');
         } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
           setMessage('קבוצה לא נמצאה. בדוק את הקישור שהזנת.');
         }
         
@@ -311,20 +332,11 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }
       
       const data = await response.json();
-      
-      // שמור את המידע הדיאגנוסטי
-      console.log('fetchTeam response debug:', {
-        teamId: params.teamId,
-        currentPointIndex: data.team?.currentPointIndex,
-        totalPoints: data.team?.currentRoute?.points?.length,
-        visitedPoints: data.team?.visitedPoints,
-        isRouteCompleted: data.team?.currentPointIndex >= (data.team?.currentRoute?.points?.length || 0)
+      console.log('Team data fetched successfully:', {
+        teamId: data.team?._id,
+        name: data.team?.name,
+        currentPointIndex: data.team?.currentPointIndex
       });
-      
-      if (data.debug) {
-        console.log('Debug info:', data.debug);
-        window.debugInfo = data.debug;
-      }
       
       if (!data.team) {
         console.error('No team data in response');
