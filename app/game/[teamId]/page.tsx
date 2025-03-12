@@ -339,17 +339,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }
 
       if (data.correct) {
-        // תשובה נכונה
-        if (data.isLastPoint) {
-          setGameCompleted(true);
-          setMessage('כל הכבוד! סיימתם את המסלול');
-          // עצור את השעון
-          const finalTime = elapsedTime;
-          setElapsedTime(finalTime);
-        } else {
-          // Show the current point name in the message, not the next point
-          setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
-        }
+        // תשובה נכונה - even for the last point, don't complete the game yet
+        setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
         
         setSelectedAnswer('');
         setCurrentHintLevel(0); // איפוס רמת הרמז
@@ -390,8 +381,15 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     setShowQuestion(true);
     setMessage(null);
     
-    // Remove the automatic game completion for finish points
-    // Let the player answer the question first
+    // If this is the finish point and the player has already answered the question correctly
+    // (indicated by the point being in completedPoints), then complete the game
+    if (isFinishPoint && completedPoints.some(p => p._id === currentPoint?._id)) {
+      setGameCompleted(true);
+      setMessage('כל הכבוד! סיימתם את המסלול');
+      // עצור את השעון
+      const finalTime = elapsedTime;
+      setElapsedTime(finalTime);
+    }
   };
 
   const getCurrentPoint = () => {
@@ -672,7 +670,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                     {isFinishPoint ? 'הגעתם לנקודת הסיום!' : 'הגעתם לנקודה?'}
                   </h2>
                   <p className="text-gray-600 mb-3">
-                    {isFinishPoint 
+                    {isFinishPoint && completedPoints.some(p => p._id === currentPoint?._id)
                       ? 'לחצו על הכפתור לסיום המשחק' 
                       : 'לחצו על הכפתור כדי לחשוף את השאלה'}
                   </p>
@@ -681,7 +679,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                     className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg font-medium
                       transition-all transform hover:scale-[1.02] active:scale-[0.98]"
                   >
-                    {isFinishPoint ? 'סיים משחק' : 'הגעתי! חשוף שאלה'}
+                    {isFinishPoint && completedPoints.some(p => p._id === currentPoint?._id) 
+                      ? 'הגעתי לפאב! סיים משחק' 
+                      : 'הגעתי! חשוף שאלה'}
                   </button>
                 </motion.div>
               )}
