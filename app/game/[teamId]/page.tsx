@@ -485,22 +485,35 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     const isFinalPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
     const hasAnsweredCorrectly = team?.visitedPoints?.includes(currentPoint?._id);
 
+    console.log('handleRevealQuestion debug:', {
+        isFinalPoint,
+        hasAnsweredCorrectly,
+        currentPoint,
+        team: {
+            _id: team?._id,
+            uniqueLink: team?.uniqueLink,
+            visitedPoints: team?.visitedPoints,
+            currentPointIndex: team?.currentPointIndex
+        },
+        elapsedTime
+    });
+
     // אם זה הפאב וענו נכון על השאלה, לחיצה על הכפתור תסיים את המשחק
     if (isFinalPoint && hasAnsweredCorrectly) {
         const capturedTime = elapsedTime;
+        console.log('Attempting to complete game with time:', capturedTime);
         
         // עצירת הטיימר
         if (timerRef.current) {
             clearInterval(timerRef.current);
             timerRef.current = null;
+            console.log('Timer stopped');
         }
 
-        // שמירת הזמן הסופי וסיום המשחק
-        setFinalTime(capturedTime);
-        setGameCompleted(true);
-        
         try {
             const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
+            console.log('Sending completion request for teamId:', teamId);
+            
             const response = await fetch(`/api/game/${teamId}/complete`, {
                 method: 'POST',
                 headers: {
@@ -513,17 +526,53 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                 }),
             });
             
+            console.log('Completion response status:', response.status);
+            
             if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Completion error:', errorData);
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
+            const responseData = await response.json();
+            console.log('Completion response:', responseData);
+            
+            // רק אחרי שהשמירה הצליחה, נעדכן את המצב
+            setFinalTime(capturedTime);
+            setGameCompleted(true);
             setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
         } catch (error) {
             console.error('Error saving completion time:', error);
-            // Even if saving fails, still show completion message
-            setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
-            // Try to fetch team data to ensure UI is updated
-            await fetchTeam();
+            // במקרה של שגיאה, ננסה שוב לשמור
+            try {
+                await fetchTeam();
+                const retryTeamId = team?.uniqueLink?.split('/').pop() || team?._id;
+                console.log('Retrying completion request for teamId:', retryTeamId);
+                
+                const retryResponse = await fetch(`/api/game/${retryTeamId}/complete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        completionTime: capturedTime,
+                        finalTime: capturedTime,
+                        completedAt: new Date().toISOString()
+                    }),
+                });
+                
+                if (retryResponse.ok) {
+                    setFinalTime(capturedTime);
+                    setGameCompleted(true);
+                    setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
+                } else {
+                    throw new Error('Retry failed');
+                }
+            } catch (retryError) {
+                console.error('Retry also failed:', retryError);
+                // אם גם הניסיון השני נכשל, נציג הודעת שגיאה למשתמש
+                setMessage('שגיאה בשמירת זמן הסיום. אנא נסו שוב.');
+            }
         }
     } else {
         // בכל נקודה אחרת, הצג את השאלה
