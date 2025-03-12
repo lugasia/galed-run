@@ -36,6 +36,7 @@ export interface ITeam extends Document {
   visitedPoints: mongoose.Types.ObjectId[];
   penaltyEndTime?: Date;
   startTime?: Date;
+  completionTime?: number;
   currentLocation?: {
     type: string;
     coordinates: [number, number];
@@ -53,6 +54,7 @@ const teamSchema = new Schema({
   visitedPoints: [{ type: Schema.Types.ObjectId, ref: 'Point' }],
   penaltyEndTime: { type: Date },
   startTime: { type: Date },
+  completionTime: { type: Number },
   currentLocation: {
     type: { type: String, enum: ['Point'], default: 'Point' },
     coordinates: { type: [Number], default: undefined },

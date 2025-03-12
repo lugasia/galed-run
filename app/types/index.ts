@@ -35,6 +35,7 @@ export interface Team {
   visitedPoints: string[];
   penaltyEndTime?: Date;
   startTime?: Date;
+  completionTime?: number;
   currentLocation?: {
     type?: string;
     coordinates: [number, number];

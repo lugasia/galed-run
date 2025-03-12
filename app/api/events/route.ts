@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '../../lib/mongodb';
 import mongoose from 'mongoose';
+import Event from '../../models/Event';
+import { Team } from '../../models/Team';
 
 const EventSchema = new mongoose.Schema({
   team: {
@@ -34,12 +36,12 @@ const EventSchema = new mongoose.Schema({
   timestamps: true
 });
 
-const Event = mongoose.models.Event || mongoose.model('Event', EventSchema);
+const EventModel = mongoose.models.Event || mongoose.model('Event', EventSchema);
 
 export async function GET() {
   try {
     await dbConnect();
-    const events = await Event.find()
+    const events = await EventModel.find()
       .sort({ createdAt: -1 })
       .limit(100)
       .populate('team', 'name leaderName')
@@ -59,24 +61,38 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     await dbConnect();
-    const data = await request.json();
-    const event = await Event.create(data);
-    const populatedEvent = await event
-      .populate('team', 'name leaderName')
-      .populate('point', 'name code')
-      .populate('route', 'name');
     
-    return NextResponse.json(populatedEvent);
+    const data = await request.json();
+    
+    // Create the event
+    const event = await EventModel.create(data);
+    
+    // If this is a route completion event, update the team's status
+    if (data.type === 'ROUTE_COMPLETED') {
+      const team = await Team.findById(data.team);
+      if (team) {
+        // Mark the team as inactive
+        team.active = false;
+        // Store the completion time
+        team.completionTime = data.details.finalTime;
+        await team.save();
+      }
+    }
+    
+    return NextResponse.json({ success: true, event });
   } catch (error) {
-    console.error('Failed to create event:', error);
-    return NextResponse.json({ error: 'Failed to create event' }, { status: 500 });
+    console.error('Error creating event:', error);
+    return NextResponse.json(
+      { error: 'Failed to create event' },
+      { status: 500 }
+    );
   }
 }
 
 export async function DELETE() {
   try {
     await dbConnect();
-    await Event.deleteMany({});
+    await EventModel.deleteMany({});
     return NextResponse.json({ message: 'All events cleared successfully' });
   } catch (error) {
     console.error('Failed to clear events:', error);

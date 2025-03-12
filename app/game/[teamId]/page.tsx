@@ -443,11 +443,11 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     }
   };
 
-  const handleRevealQuestion = () => {
+  const handleRevealQuestion = async () => {
     // For the final point (Pub), if the player has already answered correctly,
     // immediately complete the game and show the completion screen
     if (isFinishPoint && completedPoints.some(p => p._id === currentPoint?._id)) {
-      console.log('Final point reached, completing game');
+      console.log('Final point (Pub) reached, completing game');
       
       // Capture the final time
       const capturedTime = elapsedTime;
@@ -460,11 +460,32 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
-        console.log('Timer stopped immediately');
+        console.log('Timer stopped');
       }
       
-      // Mark the game as completed - this will trigger the completion effect
+      // Mark the game as completed
       setGameCompleted(true);
+      
+      // Create a game completion event
+      try {
+        await fetch(`/api/events`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            team: params.teamId,
+            type: 'ROUTE_COMPLETED',
+            point: currentPoint?._id,
+            details: {
+              finalTime: capturedTime,
+              completedAt: new Date().toISOString()
+            }
+          }),
+        });
+      } catch (error) {
+        console.error('Error creating completion event:', error);
+      }
       
       return; // Don't proceed to show the question
     }
@@ -473,6 +494,15 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     setShowQuestion(true);
     setMessage(null);
   };
+
+  const currentPoint = team && points.length > 0 ? points[team.currentPointIndex] : null;
+  
+  const isFinishPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
+  
+  // Debugging: Log button text logic
+  console.log('Button text:', isFinishPoint && completedPoints.some(p => p._id === currentPoint?._id) 
+    ? 'הגעתי! עצור את השעון!' 
+    : 'הגעתי! חשוף שאלה');
 
   const getCurrentPoint = () => {
     if (!team || !points.length) return null;
@@ -560,13 +590,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     );
   }
 
-  const currentPoint = team && points.length > 0 ? points[team.currentPointIndex] : null;
-  
-  // Check if the route is completed - prioritize gameCompleted state
   const isRouteCompleted = gameCompleted || (team?.currentPointIndex >= points.length);
-  
-  // Check if the current point is the finish point (point with code 1011)
-  const isFinishPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
   
   if (isRouteCompleted) {
     return (
