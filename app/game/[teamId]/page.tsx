@@ -458,7 +458,11 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         
         // Check if this is the pub point
         if (currentPoint.code === '1011' || currentPoint.isFinishPoint) {
-            setMessage('נכון מאד! רוץ לפאב');
+            setMessage('צדקת! לחץ על "הגעתי" כדי לסיים את המשחק');
+            // Prevent the question from showing again for the final point
+            const updatedTeam = { ...team };
+            updatedTeam.visitedPoints = [...(team.visitedPoints || []), currentPoint._id];
+            setTeam(updatedTeam);
         } else {
             setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
         }
