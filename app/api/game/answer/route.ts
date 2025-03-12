@@ -332,18 +332,6 @@ export async function POST(request: Request) {
     // Check if this was the last point
     const isLastPoint = team.currentPointIndex === team.currentRoute.points.length - 1;
     if (isLastPoint) {
-      try {
-        await mongoose.models.Event.create({
-          team: team._id,
-          type: 'ROUTE_COMPLETED',
-          route: team.currentRoute._id,
-        });
-        console.log('Created event for route completion');
-      } catch (eventError) {
-        console.error('Error creating route completion event:', eventError);
-        // Continue even if event creation fails
-      }
-
       const startTime = typeof team.startTime === 'string' ? new Date(team.startTime) : team.startTime;
       if (!(startTime instanceof Date) || isNaN(startTime.getTime())) {
         console.error('Invalid start time for team:', team._id);

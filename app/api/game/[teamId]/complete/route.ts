@@ -61,6 +61,24 @@ export async function POST(
       uniqueLink: team.uniqueLink
     });
     
+    // Check if team already has a completion event
+    const existingCompletionEvent = await Event.findOne({
+      team: team._id,
+      type: 'ROUTE_COMPLETED'
+    });
+
+    if (existingCompletionEvent) {
+      console.log('Team already has a completion event');
+      return NextResponse.json({ 
+        success: true,
+        debug: {
+          teamId: team._id,
+          completionTime: data.completionTime,
+          message: 'Team already completed'
+        }
+      });
+    }
+    
     // Update team with completion data
     const updates = {
       completionTime: data.completionTime,
