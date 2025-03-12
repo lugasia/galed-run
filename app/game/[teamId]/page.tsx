@@ -311,6 +311,14 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       const data = await response.json();
       
       // שמור את המידע הדיאגנוסטי
+      console.log('fetchTeam response debug:', {
+        teamId: params.teamId,
+        currentPointIndex: data.team?.currentPointIndex,
+        totalPoints: data.team?.currentRoute?.points?.length,
+        visitedPoints: data.team?.visitedPoints,
+        isRouteCompleted: data.team?.currentPointIndex >= (data.team?.currentRoute?.points?.length || 0)
+      });
+      
       if (data.debug) {
         console.log('Debug info:', data.debug);
         window.debugInfo = data.debug;
@@ -335,6 +343,14 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   
   // פונקציה לעיבוד נתוני הקבוצה
   const processTeamData = (team: Team) => {
+    console.log('processTeamData debug:', {
+      currentPointIndex: team.currentPointIndex,
+      totalPoints: team.currentRoute?.points?.length,
+      visitedPoints: team.visitedPoints,
+      isRouteCompleted: team.currentPointIndex >= (team.currentRoute?.points?.length || 0),
+      gameCompleted
+    });
+
     if (team?.currentRoute?.points) {
       setPoints(team.currentRoute.points);
       
@@ -458,7 +474,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     const hasAnsweredCorrectly = team?.visitedPoints?.includes(currentPoint?._id);
 
     // Debug logs
-    console.log('Game completion debug:', {
+    console.log('handleRevealQuestion debug:', {
         isFinalPoint,
         currentPointCode: currentPoint?.code,
         isFinishPoint: currentPoint?.isFinishPoint,
@@ -467,7 +483,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         visitedPoints: team?.visitedPoints,
         teamId: team?._id,
         currentPointIndex: team?.currentPointIndex,
-        totalPoints: points?.length
+        totalPoints: points?.length,
+        gameCompleted,
+        isRouteCompleted: team?.currentPointIndex >= points.length
     });
 
     if (isFinalPoint && hasAnsweredCorrectly) {
