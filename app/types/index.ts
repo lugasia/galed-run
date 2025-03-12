@@ -75,3 +75,11 @@ export interface Event {
 export const DEFAULT_MAX_ATTEMPTS = 3;
 export const DEFAULT_PENALTY_TIME = 2; // minutes
 export const HINT_PENALTY_TIME = 1; // minutes 
+
+// בפונקציית handleRevealQuestion:
+const isFinalPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
+const hasAnsweredCorrectly = team?.visitedPoints?.includes(currentPoint?._id);
+
+if (isFinalPoint && hasAnsweredCorrectly) {
+  // הלוגיקה של סיום המשחק
+} 
