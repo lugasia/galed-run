@@ -184,39 +184,41 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
   // Separate effect to handle game completion
   useEffect(() => {
-    if (gameCompleted) {
-      console.log('Game completed effect triggered');
+    if (gameCompleted && finalTime !== null) {
+      console.log('Game completed effect triggered, finalTime:', finalTime);
       
-      // Stop the timer
+      // Stop the timer if it's still running
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
-        console.log('Timer stopped');
+        console.log('Timer stopped in completion effect');
       }
       
-      // If we have a final time, use it, otherwise use current elapsed time
-      const timeToSave = finalTime !== null ? finalTime : elapsedTime;
-      
       // Save completion time to server
-      const teamId = team?.uniqueLink.split('/').pop() || team?._id;
+      const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
       if (teamId) {
-        console.log('Saving completion time to server:', timeToSave);
-        fetch(`/api/teams/${teamId}/complete`, {
+        console.log('Saving completion time to server:', finalTime);
+        fetch(`/api/game/${teamId}/complete`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            completionTime: timeToSave,
+            completionTime: finalTime,
+            finalTime: finalTime,
+            completedAt: new Date().toISOString()
           }),
         }).then(response => {
           console.log('Completion time saved, response status:', response.status);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
         }).catch(error => {
-          console.error('Error in completion time response:', error);
+          console.error('Error saving completion time:', error);
         });
       }
     }
-  }, [gameCompleted, finalTime, elapsedTime, team]);
+  }, [gameCompleted, finalTime, team]);
 
   useEffect(() => {
     if (penaltyEndTime) {
@@ -514,6 +516,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         currentPointIndex: team?.currentPointIndex,
         totalPoints: points?.length,
         gameCompleted,
+        elapsedTime,
         isRouteCompleted: team?.currentPointIndex >= points.length
     });
 
@@ -541,7 +544,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
             console.log('Using teamId for completion:', teamId);
             
-            const response = await fetch(`/api/teams/${teamId}/complete`, {
+            const response = await fetch(`/api/game/${teamId}/complete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
