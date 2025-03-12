@@ -22,13 +22,13 @@ const RouteSchema = new Schema({
   settings: {
     penaltyTime: {
       type: Number,
-      default: 1,
-      min: 1,
+      default: 0.5, // 30 seconds
+      min: 0.5,
       max: 5,
     },
     maxAttempts: {
       type: Number,
-      default: 3,
+      default: 2,
       min: 1,
     },
   },
