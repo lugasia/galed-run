@@ -340,11 +340,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
       if (data.correct) {
         // תשובה נכונה - even for the last point, don't complete the game yet
-        if (isFinishPoint) {
-          setMessage(`צדקת! רוץ לנקודת סיום "פאב"`);
-        } else {
-          setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
-        }
+        setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
         
         setSelectedAnswer('');
         setCurrentHintLevel(0); // איפוס רמת הרמז
@@ -393,6 +389,24 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       // עצור את השעון
       const finalTime = elapsedTime;
       setElapsedTime(finalTime);
+      
+      // Save the completion time to the server
+      try {
+        const teamId = team?.uniqueLink.split('/').pop() || team?._id;
+        if (teamId) {
+          fetch(`/api/teams/${teamId}/complete`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              completionTime: finalTime,
+            }),
+          });
+        }
+      } catch (error) {
+        console.error('Error saving completion time:', error);
+      }
     }
   };
 
@@ -661,7 +675,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                       disabled:from-gray-400 disabled:to-gray-500 disabled:opacity-60 
                       transition-all transform hover:scale-[1.02] active:scale-[0.98]"
                   >
-                    {isFinishPoint ? 'סיים מסלול' : 'שלח'}
+                    שלח
                   </button>
                 </motion.div>
               ) : (
@@ -684,7 +698,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                       transition-all transform hover:scale-[1.02] active:scale-[0.98]"
                   >
                     {isFinishPoint && completedPoints.some(p => p._id === currentPoint?._id) 
-                      ? 'לחץ לסיום המסלול' 
+                      ? 'סיים משחק' 
                       : 'הגעתי! חשוף שאלה'}
                   </button>
                 </motion.div>
