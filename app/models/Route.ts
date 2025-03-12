@@ -24,7 +24,7 @@ const RouteSchema = new Schema({
       type: Number,
       default: 0.5, // 30 seconds
       min: 0.5,
-      max: 5,
+      max: 2, // 2 minutes
     },
     maxAttempts: {
       type: Number,

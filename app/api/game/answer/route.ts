@@ -327,9 +327,6 @@ export async function POST(request: Request) {
           team: team._id,
           type: 'ROUTE_COMPLETED',
           route: team.currentRoute._id,
-          details: {
-            endTime: new Date()
-          }
         });
         console.log('Created event for route completion');
       } catch (eventError) {

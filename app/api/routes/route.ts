@@ -78,13 +78,13 @@ const RouteSchema = new mongoose.Schema<IRoute>({
   settings: {
     penaltyTime: {
       type: Number,
-      default: 2,
-      min: 1,
-      max: 5,
+      default: 0.5, // 30 seconds
+      min: 0.5,
+      max: 2, // 2 minutes
     },
     maxAttempts: {
       type: Number,
-      default: 3,
+      default: 2,
       min: 1,
     },
   },
