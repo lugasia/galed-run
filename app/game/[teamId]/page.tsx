@@ -417,9 +417,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         
         // Check if this is the pub point
         if (currentPoint.code === '1011' || currentPoint.isFinishPoint) {
-          setMessage('צדקת! רוץ לנקודה האחרונה!');
+            setMessage('צדקת! לחץ על "הגעתי" כדי לסיים את המשחק');
         } else {
-          setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
+            setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
         }
         
         // רענן את נתוני הקבוצה
@@ -482,9 +482,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         
         // Stop the timer immediately
         if (timerRef.current) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-          console.log('Timer stopped');
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+            console.log('Timer stopped');
         }
         
         // Mark the game as completed
@@ -492,45 +492,47 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         
         // Create a game completion event
         try {
-          // Extract teamId from uniqueLink or use _id as fallback
-          const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
-          console.log('Using teamId for completion:', teamId);
-          
-          const response = await fetch(`/api/events`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              team: teamId,
-              type: 'ROUTE_COMPLETED',
-              point: currentPoint?._id,
-              details: {
-                finalTime: capturedTime,
-                completedAt: new Date().toISOString()
-              }
-            }),
-          });
+            // Extract teamId from uniqueLink or use _id as fallback
+            const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
+            console.log('Using teamId for completion:', teamId);
+            
+            const response = await fetch(`/api/events`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    team: teamId,
+                    type: 'ROUTE_COMPLETED',
+                    point: currentPoint?._id,
+                    details: {
+                        finalTime: capturedTime,
+                        completedAt: new Date().toISOString()
+                    }
+                }),
+            });
 
-          if (!response.ok) {
-            throw new Error('Failed to create completion event');
-          }
-          
-          console.log('Game completion event created successfully');
-          
-          // Update the message to show completion
-          setMessage('כל הכבוד! סיימתם את המשחק!');
+            if (!response.ok) {
+                throw new Error('Failed to create completion event');
+            }
+            
+            console.log('Game completion event created successfully');
+            
+            // Update the message to show completion
+            setMessage('כל הכבוד! סיימתם את המשחק!');
         } catch (error) {
-          console.error('Error creating completion event:', error);
-          setMessage('שגיאה בשמירת זמן הסיום. אנא צרו קשר עם מנהל המשחק.');
+            console.error('Error creating completion event:', error);
+            setMessage('שגיאה בשמירת זמן הסיום. אנא צרו קשר עם מנהל המשחק.');
         }
         
         return; // Don't proceed to show the question
     }
     
-    // For all other points, show the question
+    // For all other points, show the question and only clear message if not at final point
     setShowQuestion(true);
-    setMessage(null);
+    if (!isFinalPoint) {
+        setMessage(null);
+    }
   };
 
   const currentPoint = team && points.length > 0 ? points[team.currentPointIndex] : null;
@@ -816,17 +818,17 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                   </h2>
                   <p className="text-gray-600 mb-3">
                     {isFinishPoint && team?.visitedPoints?.includes(currentPoint?._id)
-                      ? 'לחצו על הכפתור לסיום המשחק' 
-                      : 'לחצו על הכפתור כדי לחשוף את השאלה'}
+                        ? 'לחץ על הכפתור לסיום המשחק' 
+                        : 'לחץ על הכפתור כדי לחשוף את השאלה'}
                   </p>
                   <button
                     onClick={handleRevealQuestion}
                     className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg font-medium
-                      transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                        transition-all transform hover:scale-[1.02] active:scale-[0.98]"
                   >
                     {isFinishPoint && team?.visitedPoints?.includes(currentPoint?._id)
-                      ? 'הגעתי! עצור את השעון!' 
-                      : 'הגעתי! חשוף שאלה'}
+                        ? 'הגעתי! סיים את המשחק' 
+                        : 'הגעתי! חשוף שאלה'}
                   </button>
                 </motion.div>
               )}
