@@ -445,14 +445,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
       if (data.correct) {
         // תשובה נכונה
-        console.log('Correct answer debug:', {
-            pointId: currentPoint._id,
-            pointCode: currentPoint.code,
-            isFinishPoint: currentPoint.isFinishPoint,
-            teamId: team._id,
-            visitedPoints: team.visitedPoints
-        });
-
         setSelectedAnswer('');
         setCurrentHintLevel(0); // איפוס רמת הרמז
         setShowQuestion(false); // הסתר את השאלה אחרי תשובה נכונה
@@ -470,23 +462,17 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       } else {
         // תשובה שגויה
         setMessage('טעית, נסה שוב');
-        
-        // הוסף את התשובה השגויה לרשימת האפשרויות החסומות
         setDisabledOptions(prev => [...prev, selectedAnswer]);
-        
         setSelectedAnswer('');
         
-        // בדוק אם התקבל רמז אוטומטי מהשרת
         if (data.hintRequested && data.hintLevel !== undefined) {
           setCurrentHintLevel(data.hintLevel);
         }
         
-        // בדוק אם יש עונש זמן
         if (data.penaltyEndTime) {
           setPenaltyEndTime(new Date(data.penaltyEndTime));
         }
         
-        // רענן את נתוני הקבוצה
         await fetchTeam();
       }
     } catch (error) {
@@ -496,28 +482,26 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   };
 
   const handleRevealQuestion = async () => {
-    // Check if this is the final point (Pub) and the question has been answered correctly
     const isFinalPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
     const hasAnsweredCorrectly = team?.visitedPoints?.includes(currentPoint?._id);
 
-    // If at pub and answered correctly, clicking the button will complete the game
+    // אם זה הפאב וענו נכון על השאלה, לחיצה על הכפתור תסיים את המשחק
     if (isFinalPoint && hasAnsweredCorrectly) {
-        // Capture the final time
         const capturedTime = elapsedTime;
         
-        // Stop the timer
+        // עצירת הטיימר
         if (timerRef.current) {
             clearInterval(timerRef.current);
             timerRef.current = null;
         }
 
-        // Set final time and complete the game
+        // שמירת הזמן הסופי וסיום המשחק
         setFinalTime(capturedTime);
         setGameCompleted(true);
         
         try {
             const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
-            const response = await fetch(`/api/game/${teamId}/complete`, {
+            await fetch(`/api/game/${teamId}/complete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -528,10 +512,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                     completedAt: new Date().toISOString()
                 }),
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to save completion time');
-            }
             
             setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
         } catch (error) {
@@ -539,7 +519,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
         }
     } else {
-        // For all other points, show the question
+        // בכל נקודה אחרת, הצג את השאלה
         setShowQuestion(true);
         setMessage(null);
     }
