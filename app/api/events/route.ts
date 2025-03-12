@@ -64,19 +64,43 @@ export async function POST(request: Request) {
     
     const data = await request.json();
     
-    // Create the event
-    const event = await EventModel.create(data);
+    // Find team by ID or uniqueLink
+    let team;
+    
+    // First try to find by ID
+    if (mongoose.Types.ObjectId.isValid(data.team)) {
+      team = await Team.findById(data.team);
+    }
+    
+    // If not found, try to find by uniqueLink
+    if (!team) {
+      // Clean the teamId
+      const cleanedTeamId = data.team.replace(/[@/]/g, '');
+      console.log('Searching for team with cleaned ID:', cleanedTeamId);
+      
+      team = await Team.findOne({
+        uniqueLink: { $regex: cleanedTeamId + '$' }
+      });
+    }
+    
+    if (!team) {
+      console.error('Team not found:', data.team);
+      return NextResponse.json({ error: 'Team not found' }, { status: 404 });
+    }
+    
+    // Create the event with the found team's ID
+    const event = await EventModel.create({
+      ...data,
+      team: team._id
+    });
     
     // If this is a route completion event, update the team's status
     if (data.type === 'ROUTE_COMPLETED') {
-      const team = await Team.findById(data.team);
-      if (team) {
-        // Mark the team as inactive
-        team.active = false;
-        // Store the completion time
-        team.completionTime = data.details.finalTime;
-        await team.save();
-      }
+      // Mark the team as inactive
+      team.active = false;
+      // Store the completion time
+      team.completionTime = data.details.finalTime;
+      await team.save();
     }
     
     return NextResponse.json({ success: true, event });

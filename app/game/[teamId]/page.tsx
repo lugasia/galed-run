@@ -401,17 +401,24 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }
 
       if (data.correct) {
-        // תשובה נכונה - even for the last point, don't complete the game yet
-        if (isFinishPoint) {
-          setMessage(`צדקת! רוץ לנקודת סיום "פאב"`);
-        } else {
-          setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
-        }
-        
+        // תשובה נכונה
         setSelectedAnswer('');
         setCurrentHintLevel(0); // איפוס רמת הרמז
         setShowQuestion(false); // הסתר את השאלה אחרי תשובה נכונה
         setDisabledOptions([]); // איפוס האפשרויות החסומות
+        
+        // Get next point name
+        const nextPointIndex = team.currentPointIndex + 1;
+        const nextPoint = points[nextPointIndex];
+        
+        // Check if this is the pub point
+        if (currentPoint.code === '1011' || currentPoint.isFinishPoint) {
+          setMessage('צדקת! לחץ על כפתור "הגעתי" כדי לסיים את המשחק');
+        } else if (nextPoint) {
+          setMessage(`צדקת! רוץ לנקודה "${nextPoint.name}"`);
+        } else {
+          setMessage('צדקת! רוץ לנקודה האחרונה');
+        }
         
         // רענן את נתוני הקבוצה
         await fetchTeam();
@@ -468,13 +475,17 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       
       // Create a game completion event
       try {
+        // Extract teamId from uniqueLink or use _id as fallback
+        const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
+        console.log('Using teamId for completion:', teamId);
+        
         await fetch(`/api/events`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            team: params.teamId,
+            team: teamId,
             type: 'ROUTE_COMPLETED',
             point: currentPoint?._id,
             details: {
@@ -483,6 +494,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             }
           }),
         });
+        
+        console.log('Game completion event created successfully');
       } catch (error) {
         console.error('Error creating completion event:', error);
       }
