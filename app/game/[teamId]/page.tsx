@@ -347,8 +347,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           const finalTime = elapsedTime;
           setElapsedTime(finalTime);
         } else {
-          const nextPointName = data.nextPoint?.name || 'הבאה';
-          setMessage(`צדקת! רוץ לנקודה "${nextPointName}"`);
+          // Show the current point name in the message, not the next point
+          setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
         }
         
         setSelectedAnswer('');
@@ -669,7 +669,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                   className="bg-white rounded-lg shadow-lg p-4 text-center"
                 >
                   <h2 className="text-xl font-bold mb-2">
-                    {isFinishPoint ? 'הגעתם לנקודת הסיום!' : 'הגעתם לנקודה הבאה?'}
+                    {isFinishPoint ? 'הגעתם לנקודת הסיום!' : 'הגעתם לנקודה?'}
                   </h2>
                   <p className="text-gray-600 mb-3">
                     {isFinishPoint 
@@ -714,7 +714,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           className="bg-white border-t border-gray-200 p-4"
         >
           <div className="max-w-lg mx-auto">
-            <h3 className="font-bold text-sm mb-2 text-gray-700">טחנות שעברתם:</h3>
+            <h3 className="font-bold text-sm mb-2 text-gray-700">תחנות שעברתם:</h3>
             <div className="flex flex-wrap gap-2">
               {completedPoints.map((point, index) => (
                 <div key={point._id} className="flex items-center bg-green-50 rounded-full px-3 py-1 text-sm">
