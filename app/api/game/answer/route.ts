@@ -433,7 +433,7 @@ export async function POST(request: Request) {
         
         return NextResponse.json({ 
           correct: true,
-          message: 'צדקת! רוץ לנקודה הבאה',
+          message: `צדקת! רוץ לנקודה "${nextPoint.name}"`,
           nextPoint: {
             name: nextPoint.name,
             code: nextPoint.code,

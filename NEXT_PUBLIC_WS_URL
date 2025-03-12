@@ -1,0 +1,2 @@
+# Created by Vercel CLI
+NEXT_PUBLIC_WS_URL="NEXT_PUBLIC_WS_URL=ws://localhost:3001 "

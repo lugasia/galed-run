@@ -390,14 +390,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     setShowQuestion(true);
     setMessage(null);
     
-    // אם זו נקודת סיום, נעדכן את המצב בהתאם
-    if (isFinishPoint) {
-      setGameCompleted(true);
-      setMessage('כל הכבוד! סיימתם את המסלול');
-      // עצור את השעון
-      const finalTime = elapsedTime;
-      setElapsedTime(finalTime);
-    }
+    // Remove the automatic game completion for finish points
+    // Let the player answer the question first
   };
 
   const getCurrentPoint = () => {
