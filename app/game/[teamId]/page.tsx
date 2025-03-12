@@ -785,7 +785,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                       <img 
                         src={currentPoint.question.image} 
                         alt="תמונת השאלה" 
-                        className="w-full max-h-[40vh] object-contain rounded-lg"
+                        className="w-1/5 mx-auto max-h-[40vh] object-contain rounded-lg"
                         onClick={() => setShowPointImage(true)}
                       />
                     </div>
