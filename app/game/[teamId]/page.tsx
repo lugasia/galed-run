@@ -379,12 +379,20 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       console.log('currentPointIndex out of bounds, setting to last point');
       team.currentPointIndex = (team.currentRoute?.points?.length || 1) - 1;
     }
+
+    // Get current point
+    const currentPoint = team.currentRoute?.points[team.currentPointIndex];
+    const isFinalPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
+    const hasAnsweredCorrectly = team.visitedPoints?.includes(currentPoint?._id);
     
-    // בנקודה הראשונה (אינדקס 0) הצג את השאלה אוטומטית
-    // בשאר הנקודות המשתמש צריך ללחוץ על כפתור "הגעתי" כדי לראות את השאלה
-    if (team.currentPointIndex === 0) {
+    // Only show question automatically in these cases:
+    // 1. First point (index 0)
+    // 2. Not in penalty
+    // 3. Not already showing question
+    // 4. Not the final point that's been answered correctly
+    if (team.currentPointIndex === 0 && !team.penaltyEndTime && !showQuestion) {
       setShowQuestion(true);
-    } else if (!team.penaltyEndTime && !showQuestion) { // Only reset if not in penalty and not already showing
+    } else if (!team.penaltyEndTime && !showQuestion && !(isFinalPoint && hasAnsweredCorrectly)) {
       setShowQuestion(false);
     }
     
@@ -508,12 +516,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     if (isFinalPoint && hasAnsweredCorrectly) {
         console.log('Final point conditions met, completing game');
         
-        // Capture the final time
+        // Capture the final time before any state changes
         const capturedTime = elapsedTime;
         console.log('Final time captured:', capturedTime);
-        
-        // Store the final time
-        setFinalTime(capturedTime);
         
         // Stop the timer immediately
         if (timerRef.current) {
@@ -521,8 +526,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             timerRef.current = null;
             console.log('Timer stopped');
         }
-        
-        // Mark the game as completed
+
+        // Set states in the correct order
+        setFinalTime(capturedTime);
         setGameCompleted(true);
         
         // Create a game completion event
@@ -531,33 +537,31 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
             console.log('Using teamId for completion:', teamId);
             
-            const response = await fetch(`/api/events`, {
+            const response = await fetch(`/api/teams/${teamId}/complete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    team: teamId,
-                    type: 'ROUTE_COMPLETED',
-                    point: currentPoint?._id,
-                    details: {
-                        finalTime: capturedTime,
-                        completedAt: new Date().toISOString()
-                    }
+                    completionTime: capturedTime,
+                    finalTime: capturedTime,
+                    completedAt: new Date().toISOString()
                 }),
             });
 
             if (!response.ok) {
-                throw new Error('Failed to create completion event');
+                console.error('Failed to save completion time:', response.status);
+                throw new Error('Failed to save completion time');
             }
             
-            console.log('Game completion event created successfully');
+            console.log('Game completion saved successfully');
             
-            // Update the message to show completion
-            setMessage('כל הכבוד! סיימתם את המשחק!');
+            // Update the message to show completion with the final time
+            setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
         } catch (error) {
-            console.error('Error creating completion event:', error);
-            setMessage('שגיאה בשמירת זמן הסיום. אנא צרו קשר עם מנהל המשחק.');
+            console.error('Error saving completion time:', error);
+            // Even if saving fails, still show completion message with time
+            setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
         }
         
         return; // Don't proceed to show the question
@@ -672,7 +676,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       <div className="flex flex-col h-screen">
         <div className="bg-white shadow-md p-2">
           <div className="text-center text-2xl font-bold">
-            {formatTime(finalTime !== null ? finalTime : elapsedTime)}
+            {formatTime(finalTime || elapsedTime)}
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center p-2">
@@ -680,7 +684,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             <h1 className="text-3xl font-bold mb-4">סיימתם את המסלול!</h1>
             <p className="text-xl text-gray-600 mb-4">כל הכבוד! השלמתם את כל הנקודות בהצלחה.</p>
             <div className="text-2xl font-bold mb-4 bg-green-50 p-4 rounded-lg text-green-800">
-              זמן סופי: {formatTime(finalTime !== null ? finalTime : elapsedTime)}
+              זמן סופי: {formatTime(finalTime || elapsedTime)}
             </div>
             <p className="text-sm text-gray-500">תודה על השתתפותכם במשחק!</p>
           </div>
