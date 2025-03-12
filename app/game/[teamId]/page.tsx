@@ -360,7 +360,24 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           (point: Point) => team.visitedPoints.includes(point._id)
         );
         setCompletedPoints(completed);
+
+        // Check if all points are completed and game is not marked as completed
+        if (completed.length === team.currentRoute.points.length && !gameCompleted) {
+          console.log('All points completed, marking game as completed');
+          setGameCompleted(true);
+          setFinalTime(elapsedTime);
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+        }
       }
+    }
+    
+    // Fix currentPointIndex if it's out of bounds
+    if (team.currentPointIndex >= (team.currentRoute?.points?.length || 0)) {
+      console.log('currentPointIndex out of bounds, setting to last point');
+      team.currentPointIndex = (team.currentRoute?.points?.length || 1) - 1;
     }
     
     // בנקודה הראשונה (אינדקס 0) הצג את השאלה אוטומטית
