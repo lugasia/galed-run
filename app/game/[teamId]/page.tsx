@@ -685,7 +685,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                   className="bg-white rounded-lg shadow-lg p-4 text-center"
                 >
                   <h2 className="text-xl font-bold mb-2">
-                    {isFinishPoint ? 'הגעתם לנקודת הסיום!' : 'הגעתם לנקודה?'}
+                    הגעתם לנקודה?
                   </h2>
                   <p className="text-gray-600 mb-3">
                     {isFinishPoint && completedPoints.some(p => p._id === currentPoint?._id)
