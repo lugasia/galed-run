@@ -8,12 +8,8 @@ const EventSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['POINT_REACHED', 'QUESTION_ANSWERED', 'ROUTE_STARTED', 'ROUTE_COMPLETED', 'PENALTY_APPLIED'],
+    enum: ['ROUTE_STARTED', 'ROUTE_COMPLETED'],
     required: true,
-  },
-  point: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Point',
   },
   route: {
     type: mongoose.Schema.Types.ObjectId,
@@ -22,12 +18,6 @@ const EventSchema = new mongoose.Schema({
   details: {
     type: mongoose.Schema.Types.Mixed,
   },
-  location: {
-    type: {
-      coordinates: [Number],
-    },
-    default: null,
-  }
 }, {
   timestamps: true
 });

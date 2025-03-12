@@ -56,16 +56,8 @@ export async function POST(request: Request) {
           distance <= 10 &&
           !team.visitedPoints.some((vp: any) => vp.point.toString() === point._id.toString())
         ) {
-          // Create point reached event
-          await mongoose.models.Event.create({
-            team: teamId,
-            type: 'POINT_REACHED',
-            point: point._id,
-            route: team.currentRoute._id,
-            location: {
-              coordinates,
-            },
-          });
+          // No longer creating POINT_REACHED events
+          console.log('Team reached point but not creating event');
         }
       }
     }

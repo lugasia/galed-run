@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AdminNav from '../../components/AdminNav';
 
-type EventType = 'POINT_REACHED' | 'QUESTION_ANSWERED' | 'ROUTE_STARTED' | 'ROUTE_COMPLETED' | 'PENALTY_APPLIED';
+type EventType = 'ROUTE_STARTED' | 'ROUTE_COMPLETED';
 
 interface EventWithDetails {
   _id: string;
@@ -13,33 +13,20 @@ interface EventWithDetails {
     leaderName: string;
   };
   type: EventType;
-  point?: {
-    name: string;
-    code: string;
-  };
   route?: {
     name: string;
   };
   details?: any;
-  location?: {
-    coordinates: [number, number];
-  };
   createdAt: string;
 }
 
 const EventCard = ({ event }: { event: EventWithDetails }) => {
   const getEventIcon = (type: EventType) => {
     switch (type) {
-      case 'POINT_REACHED':
-        return '📍';
-      case 'QUESTION_ANSWERED':
-        return '✅';
       case 'ROUTE_STARTED':
         return '🏁';
       case 'ROUTE_COMPLETED':
         return '🎉';
-      case 'PENALTY_APPLIED':
-        return '⚠️';
       default:
         return '📝';
     }
@@ -47,16 +34,10 @@ const EventCard = ({ event }: { event: EventWithDetails }) => {
 
   const getEventTypeText = (type: EventType) => {
     switch (type) {
-      case 'POINT_REACHED':
-        return 'הגיע לנקודה';
-      case 'QUESTION_ANSWERED':
-        return 'ענה על שאלה';
       case 'ROUTE_STARTED':
         return 'התחיל מסלול';
       case 'ROUTE_COMPLETED':
         return 'סיים מסלול';
-      case 'PENALTY_APPLIED':
-        return 'קיבל עונשין';
       default:
         return type;
     }
@@ -81,28 +62,15 @@ const EventCard = ({ event }: { event: EventWithDetails }) => {
             </span>
           </div>
           <div className="mt-3 space-y-2">
-            {event.point && (
-              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-50 text-blue-700">
-                <span className="font-medium">נקודה:</span>
-                <span className="mr-1">{event.point.name} ({event.point.code})</span>
-              </div>
-            )}
             {event.route && (
               <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-50 text-purple-700">
                 <span className="font-medium">מסלול:</span>
                 <span className="mr-1">{event.route.name}</span>
               </div>
             )}
-            {event.details && (
+            {event.details && event.type === 'ROUTE_COMPLETED' && (
               <div className="text-sm text-gray-600 mt-2">
-                {typeof event.details === 'string'
-                  ? event.details
-                  : JSON.stringify(event.details)}
-              </div>
-            )}
-            {event.location && (
-              <div className="text-sm text-gray-500 mt-2">
-                מיקום: {event.location.coordinates.join(', ')}
+                זמן סופי: {formatTime(event.details.finalTime)}
               </div>
             )}
           </div>
@@ -110,6 +78,14 @@ const EventCard = ({ event }: { event: EventWithDetails }) => {
       </div>
     </motion.div>
   );
+};
+
+const formatTime = (ms: number) => {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
 
 export default function EventsPage() {

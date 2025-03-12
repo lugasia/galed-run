@@ -57,18 +57,14 @@ export interface Route {
   includeAdvancedPoints?: boolean;
 }
 
-export type EventType = 'POINT_REACHED' | 'QUESTION_ANSWERED' | 'ROUTE_STARTED' | 'ROUTE_COMPLETED' | 'PENALTY_APPLIED' | 'HINT_REQUESTED';
+export type EventType = 'ROUTE_STARTED' | 'ROUTE_COMPLETED';
 
 export interface Event {
   _id: string;
   team: Team;
   type: EventType;
-  point?: Point;
   route?: Route;
   details?: any;
-  location?: {
-    coordinates: [number, number];
-  };
   createdAt: string;
 }
 

@@ -180,25 +180,8 @@ export async function POST(request: Request) {
     const correct = point.question.correctAnswer === answer;
     console.log('Answer is', correct ? 'correct' : 'incorrect');
 
-    // Create event for the answer
-    try {
-      await mongoose.models.Event.create({
-        team: team._id,
-        type: 'QUESTION_ANSWERED',
-        point: pointId,
-        route: team.currentRoute._id,
-        details: {
-          answer,
-          correct,
-          attempt: team.attempts || 1
-        },
-      });
-      console.log('Created event for answer');
-    } catch (eventError) {
-      console.error('Error creating event:', eventError);
-      // Continue even if event creation fails
-    }
-
+    // No longer creating QUESTION_ANSWERED events
+    
     if (!correct) {
       // First check if we're about to reach the second attempt
       try {
