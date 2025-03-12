@@ -458,16 +458,22 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         setShowQuestion(false); // הסתר את השאלה אחרי תשובה נכונה
         setDisabledOptions([]); // איפוס האפשרויות החסומות
         
-        // Check if this is the pub point
-        if (currentPoint.code === '1011' || currentPoint.isFinishPoint) {
-            setMessage('צדקת! לחץ על "הגעתי" כדי לסיים את המשחק');
-            // Prevent the question from showing again for the final point
-            const updatedTeam = { ...team };
-            updatedTeam.visitedPoints = [...(team.visitedPoints || []), currentPoint._id];
-            setTeam(updatedTeam);
+        // Check if this is the point before the pub
+        const nextPoint = points[team.currentPointIndex + 1];
+        const isBeforePub = nextPoint?.code === '1011' || nextPoint?.isFinishPoint;
+        
+        if (isBeforePub) {
+            setMessage('צדקת! רוץ לנקודת הסיום "סנטה פאב"!');
+        } else if (currentPoint.code === '1011' || currentPoint.isFinishPoint) {
+            setMessage('צדקת! לחץ על "הגעתי! עצור את השעון" כדי לסיים את המשחק');
         } else {
             setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
         }
+        
+        // Prevent the question from showing again for the final point
+        const updatedTeam = { ...team };
+        updatedTeam.visitedPoints = [...(team.visitedPoints || []), currentPoint._id];
+        setTeam(updatedTeam);
         
         // רענן את נתוני הקבוצה
         await fetchTeam();
@@ -873,7 +879,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                         transition-all transform hover:scale-[1.02] active:scale-[0.98]"
                   >
                     {isFinishPoint && team?.visitedPoints?.includes(currentPoint?._id)
-                        ? 'הגעתי! סיים את המשחק' 
+                        ? 'הגעתי! עצור את השעון' 
                         : 'הגעתי! חשוף שאלה'}
                   </button>
                 </motion.div>
