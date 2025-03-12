@@ -450,7 +450,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             pointCode: currentPoint.code,
             isFinishPoint: currentPoint.isFinishPoint,
             teamId: team._id,
-            visitedPointsBefore: team.visitedPoints
+            visitedPoints: team.visitedPoints
         });
 
         setSelectedAnswer('');
@@ -458,13 +458,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         setShowQuestion(false); // הסתר את השאלה אחרי תשובה נכונה
         setDisabledOptions([]); // איפוס האפשרויות החסומות
         
-        // אם זו הנקודה לפני האחרונה (לפני הפאב)
-        if (team.currentPointIndex === points.length - 2) {
-          setMessage('צדקת! רוץ לנקודת הסיום "סנטה פאב"');
-        } else {
-          // בכל נקודה אחרת, כולל הפאב
-          setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
-        }
+        // תמיד מציג הודעה על הנקודה הנוכחית
+        setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
         
         // עדכון הנקודות שהושלמו
         const updatedTeam = { ...team };
