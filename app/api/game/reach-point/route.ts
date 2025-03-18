@@ -95,13 +95,27 @@ export async function POST(request: Request) {
       });
     }
 
-    // Update visited points and current point index
+    // Get the previous point (if exists)
+    const previousPointIndex = team.currentPointIndex - 1;
+    const previousPoint = previousPointIndex >= 0 ? team.currentRoute.points[previousPointIndex] : null;
+    
+    // Check if we should increment the index:
+    // 1. If this is the first point (index 0), no need to check previous point
+    // 2. If previous point exists, it must be visited
+    const shouldIncrementIndex = team.currentPointIndex === 0 || 
+      (previousPoint && team.visitedPoints.includes(previousPoint._id.toString()));
+
+    // Update visited points and current point index if needed
     const updateResult = await Team.findByIdAndUpdate(
       team._id,
-      { 
-        $push: { visitedPoints: pointId },
-        $inc: { currentPointIndex: 1 }
-      },
+      shouldIncrementIndex ? 
+        { 
+          $push: { visitedPoints: pointId },
+          $inc: { currentPointIndex: 1 }
+        } :
+        { 
+          $push: { visitedPoints: pointId }
+        },
       { new: true }
     ).populate({
       path: 'currentRoute',

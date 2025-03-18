@@ -295,14 +295,13 @@ export async function POST(request: Request) {
     }
 
     // On correct answer:
-    // Reset attempts counter and update point index
+    // Only mark point as visited, don't increment index yet
     try {
       const updateResult = await (Team as Model<TeamWithRoute>).findByIdAndUpdate(
         team._id,
         { 
           $set: { attempts: 0 },
-          $push: { visitedPoints: pointId },
-          $inc: { currentPointIndex: 1 }
+          $push: { visitedPoints: pointId }
         },
         { new: true }
       ).populate({
