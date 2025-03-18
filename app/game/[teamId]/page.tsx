@@ -496,7 +496,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         await fetchTeam();
       } else {
         // תשובה שגויה
-        setMessage('טעית, נסה שוב');
+        setMessage(data.message || 'טעית, נסה שוב');
         setDisabledOptions(prev => [...prev, selectedAnswer]);
         setSelectedAnswer('');
         
