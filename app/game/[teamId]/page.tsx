@@ -439,17 +439,26 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         console.log('Point index validation:', {
           serverIndex: team.currentPointIndex,
           lastCompletedPointIndex,
-          shouldUpdateIndex: lastCompletedPointIndex !== -1 && team.currentPointIndex <= lastCompletedPointIndex
+          visitedPoints: team.visitedPoints,
+          currentPoints: team.currentRoute.points.map(p => ({ id: p._id, name: p.name }))
         });
 
         // Update index if we've completed the current point
         if (lastCompletedPointIndex !== -1) {
+          // אם הנקודה האחרונה שהושלמה היא הנקודה הנוכחית, התקדם לנקודה הבאה
           const currentPoint = team.currentRoute.points[team.currentPointIndex];
           const hasCompletedCurrentPoint = team.visitedPoints.includes(currentPoint._id);
           
-          if (hasCompletedCurrentPoint && lastCompletedPointIndex + 1 < team.currentRoute.points.length) {
-            team.currentPointIndex = lastCompletedPointIndex + 1;
-            console.log('Advancing to next point:', team.currentPointIndex);
+          if (hasCompletedCurrentPoint) {
+            // אם זו לא הנקודה האחרונה במסלול, התקדם לנקודה הבאה
+            if (lastCompletedPointIndex + 1 < team.currentRoute.points.length) {
+              team.currentPointIndex = lastCompletedPointIndex + 1;
+              console.log('Advancing to next point:', team.currentPointIndex);
+            }
+          } else {
+            // אם הנקודה הנוכחית לא הושלמה, השאר את האינדקס על הנקודה הנוכחית
+            team.currentPointIndex = Math.min(lastCompletedPointIndex + 1, team.currentRoute.points.length - 1);
+            console.log('Setting current point to:', team.currentPointIndex);
           }
         }
       }
