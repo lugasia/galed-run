@@ -60,7 +60,12 @@ export async function POST(request: Request) {
     await dbConnect();
     const { teamId, pointId, answer } = await request.json();
 
-    console.log('Processing answer for teamId:', teamId, 'pointId:', pointId, 'answer:', answer);
+    console.log('Processing answer request:', {
+      teamId,
+      pointId,
+      answer,
+      timestamp: new Date().toISOString()
+    });
     
     // Make sure models are registered
     if (!mongoose.models.Route) {
@@ -87,7 +92,11 @@ export async function POST(request: Request) {
             }
           });
         if (team) {
-          console.log('Team found by ID');
+          console.log('Team found by ID:', {
+            teamId: team._id,
+            currentPointIndex: team.currentPointIndex,
+            visitedPoints: team.visitedPoints
+          });
         }
       }
     } catch (err) {
@@ -122,7 +131,11 @@ export async function POST(request: Request) {
       });
       
       if (team) {
-        console.log('Team found by uniqueLink');
+        console.log('Team found by uniqueLink:', {
+          teamId: team._id,
+          currentPointIndex: team.currentPointIndex,
+          visitedPoints: team.visitedPoints
+        });
       } else {
         console.log('Team not found by uniqueLink either');
       }
@@ -141,6 +154,7 @@ export async function POST(request: Request) {
 
     // Check if team has already completed the route
     if (team.currentPointIndex >= team.currentRoute.points.length) {
+      console.log('Team has already completed the route');
       return NextResponse.json({ 
         correct: true,
         message: 'כל הכבוד! סיימתם את המסלול',
@@ -167,21 +181,31 @@ export async function POST(request: Request) {
     }
 
     if (point._id.toString() !== pointId) {
-      console.error('Point ID mismatch:', point._id.toString(), '!=', pointId);
+      console.error('Point ID mismatch:', {
+        expected: point._id.toString(),
+        received: pointId,
+        currentPointIndex: team.currentPointIndex
+      });
       return NextResponse.json({ message: 'נקודה לא נמצאה' }, { status: 404 });
     }
 
     // Validate that the point has a question
     if (!point.question || !point.question.correctAnswer) {
-      console.error('Point has no question or correct answer');
+      console.error('Point has no question or correct answer:', {
+        pointId: point._id,
+        hasQuestion: !!point.question,
+        hasCorrectAnswer: !!(point.question && point.question.correctAnswer)
+      });
       return NextResponse.json({ message: 'שגיאה בטעינת השאלה' }, { status: 500 });
     }
 
     const correct = point.question.correctAnswer === answer;
-    console.log('Answer is', correct ? 'correct' : 'incorrect');
+    console.log('Answer validation:', {
+      submitted: answer,
+      correct: point.question.correctAnswer,
+      isCorrect: correct
+    });
 
-    // No longer creating QUESTION_ANSWERED events
-    
     if (!correct) {
       // Get the current team state with a fresh query and no cache
       const currentTeam = await Team.findById(team._id)
@@ -295,6 +319,7 @@ export async function POST(request: Request) {
     }
 
     // If answer is correct, reset attempts counter and update visited points
+    console.log('Processing correct answer, updating team state');
     const updateResult = await Team.findByIdAndUpdate(
       teamId,
       {
@@ -313,6 +338,12 @@ export async function POST(request: Request) {
       console.error('Failed to update team after correct answer');
       return NextResponse.json({ message: 'שגיאה בעדכון הקבוצה' }, { status: 500 });
     }
+
+    console.log('Team updated successfully after correct answer:', {
+      teamId: updateResult._id,
+      currentPointIndex: updateResult.currentPointIndex,
+      visitedPoints: updateResult.visitedPoints
+    });
 
     // עדכון האינדקס לנקודה הבאה אחרי הנקודה האחרונה שהושלמה
     const lastCompletedPointIndex = updateResult.currentRoute.points.findIndex(
@@ -336,7 +367,10 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error processing answer:', error);
     return NextResponse.json(
-      { message: 'שגיאה בעיבוד התשובה' },
+      { 
+        message: 'שגיאה בעיבוד התשובה',
+        debug: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

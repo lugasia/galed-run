@@ -494,6 +494,14 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       // Extract teamId from uniqueLink
       const teamId = team.uniqueLink.split('/').pop() || team._id;
       
+      console.log('Submitting answer:', {
+        teamId,
+        pointId: currentPoint._id,
+        answer: selectedAnswer,
+        currentPointIndex: team.currentPointIndex,
+        visitedPoints: team.visitedPoints
+      });
+      
       const response = await fetch('/api/game/answer', {
         method: 'POST',
         headers: {
@@ -506,9 +514,15 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         }),
       });
 
+      console.log('Answer response status:', response.status);
       const data = await response.json();
+      console.log('Answer response data:', data);
 
       if (!response.ok) {
+        console.error('Error submitting answer:', {
+          status: response.status,
+          data
+        });
         setMessage(data.message || 'שגיאה בשליחת התשובה');
         return;
       }
@@ -522,6 +536,10 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         
         // עדכון הנקודות שהושלמו והקבוצה
         if (data.team) {
+          console.log('Updating team data after correct answer:', {
+            currentPointIndex: data.team.currentPointIndex,
+            visitedPoints: data.team.visitedPoints
+          });
           setTeam(data.team);
           if (data.team.currentRoute?.points) {
             const completed = data.team.currentRoute.points.filter(
@@ -534,6 +552,13 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         setMessage(data.message || 'צדקת! רוץ לנקודה הבאה');
       } else {
         // תשובה שגויה
+        console.log('Incorrect answer:', {
+          attempts: data.attempts,
+          hintRequested: data.hintRequested,
+          hintLevel: data.hintLevel,
+          penaltyEndTime: data.penaltyEndTime
+        });
+        
         setMessage(data.message || 'טעית, נסה שוב');
         setDisabledOptions(prev => [...prev, selectedAnswer]);
         setSelectedAnswer('');
@@ -549,7 +574,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         await fetchTeam();
       }
     } catch (error) {
-      console.error('Error submitting answer:', error);
+      console.error('Error in handleAnswerSubmit:', error);
       setMessage('שגיאה בשליחת התשובה');
     }
   };
