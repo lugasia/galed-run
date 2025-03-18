@@ -92,6 +92,25 @@ const formatPenaltyTime = (ms: number) => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
+// פונקציה לחישוב מרחק בין שתי נקודות בקילומטרים
+const calculateDistance = (point1: [number, number], point2: [number, number]): number => {
+  const [lat1, lon1] = point1;
+  const [lat2, lon2] = point2;
+  
+  const R = 6371; // רדיוס כדור הארץ בקילומטרים
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c;
+  
+  return distance;
+};
+
 export default function GamePage({ params }: { params: { teamId: string } }) {
   const router = useRouter();
   const [team, setTeam] = useState<Team | null>(null);
@@ -504,6 +523,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         isFinalPoint: isFinishPoint(currentPoint),
         hasAnsweredCorrectly,
         currentPoint,
+        userLocation,
         team: {
             _id: team?._id,
             uniqueLink: team?.uniqueLink,
@@ -513,6 +533,22 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         elapsedTime,
         gameCompleted
     });
+
+    // בדיקת מרחק מהנקודה הנוכחית
+    if (!userLocation) {
+        setMessage('לא ניתן לאתר את מיקומך. אנא ודא שה-GPS מופעל.');
+        return;
+    }
+
+    if (currentPoint?.location) {
+        const distance = calculateDistance(userLocation, currentPoint.location);
+        const maxDistanceKm = 0.05; // 50 מטר = 0.05 קילומטר
+        
+        if (distance > maxDistanceKm) {
+            setMessage(`אתה נמצא במרחק ${Math.round(distance * 1000)} מטר מהנקודה. עליך להתקרב למרחק של עד 50 מטר כדי לענות על השאלה.`);
+            return;
+        }
+    }
 
     // אם זה הפאב וענו נכון על השאלה, לחיצה על הכפתור תסיים את המשחק
     if (isFinishPoint(currentPoint) && hasAnsweredCorrectly && !gameCompleted) {
