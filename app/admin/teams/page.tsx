@@ -280,13 +280,6 @@ export default function TeamsPage() {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={handleUpdateAllLinks}
-                className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-2 rounded-xl font-medium
-                  hover:shadow-lg transform hover:scale-[1.02] transition-all"
-              >
-                עדכן לינקים
-              </button>
-              <button
                 onClick={() => setShowAddTeam(true)}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-medium
                   hover:shadow-lg transform hover:scale-[1.02] transition-all"

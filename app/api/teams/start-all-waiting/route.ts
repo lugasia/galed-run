@@ -6,8 +6,13 @@ export async function POST() {
   try {
     await connectToDB();
 
-    // מצא את כל הקבוצות שעדיין לא התחילו (אין להן startTime)
-    const waitingTeams = await Team.find({ startTime: { $exists: false } });
+    // מצא את כל הקבוצות שעדיין לא התחילו (אין להן startTime או שה-startTime הוא null)
+    const waitingTeams = await Team.find({
+      $or: [
+        { startTime: { $exists: false } },
+        { startTime: null }
+      ]
+    });
 
     // עדכן את כל הקבוצות הממתינות עם זמן התחלה נוכחי
     const currentTime = new Date();
@@ -16,7 +21,9 @@ export async function POST() {
         startTime: currentTime,
         currentPointIndex: 0,
         visitedPoints: [],
-        attempts: 0
+        attempts: 0,
+        penaltyEndTime: null,
+        hintRequested: null
       })
     );
 
