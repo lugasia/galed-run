@@ -192,7 +192,7 @@ export async function POST(request: Request) {
             model: 'Point'
           }
         })
-        .exec(); // Use exec() instead of lean() to get a proper typed document
+        .exec();
 
       if (!currentTeam) {
         console.error('Could not find team for attempts update');
@@ -210,20 +210,37 @@ export async function POST(request: Request) {
       const attempts = (currentTeam.attempts || 0) + 1;
       console.log('Incrementing attempts from', currentTeam.attempts, 'to', attempts);
       
-      // Second attempt (after first wrong answer)
+      // Update attempts first and get the updated team
+      const updatedTeam = await Team.findByIdAndUpdate(
+        currentTeam._id,
+        { $set: { attempts: attempts } },
+        { new: true }
+      ).populate({
+        path: 'currentRoute',
+        populate: {
+          path: 'points',
+          model: 'Point'
+        }
+      });
+
+      if (!updatedTeam) {
+        console.error('Failed to update attempts');
+        return NextResponse.json({ message: 'שגיאה בעדכון מספר הניסיונות' }, { status: 500 });
+      }
+
+      // Now check the updated attempts count
       if (attempts === 2) {
         console.log('Processing second attempt, applying penalty');
-        const penaltyMinutes = currentTeam.currentRoute?.settings?.penaltyTime || 2;
+        const penaltyMinutes = updatedTeam.currentRoute?.settings?.penaltyTime || 2;
         const penaltyTime = penaltyMinutes * 60 * 1000;
         const penaltyEndTime = new Date(Date.now() + penaltyTime);
         
         // Apply penalty and set hint level to 1 (zoom out)
         await Team.findByIdAndUpdate(
-          currentTeam._id,
+          updatedTeam._id,
           { 
             $set: { 
-              penaltyEndTime: penaltyEndTime,
-              attempts: attempts
+              penaltyEndTime: penaltyEndTime
             }
           },
           { new: true }
@@ -241,16 +258,15 @@ export async function POST(request: Request) {
           hintLevel: 1
         });
       }
-      // Third attempt (after penalty, with zoom out image)
       else if (attempts === 3) {
         console.log('Processing third attempt, moving to next point');
-        const penaltyMinutes = currentTeam.currentRoute?.settings?.penaltyTime || 2;
+        const penaltyMinutes = updatedTeam.currentRoute?.settings?.penaltyTime || 2;
         const penaltyTime = penaltyMinutes * 60 * 1000;
         const penaltyEndTime = new Date(Date.now() + penaltyTime);
         
         // Apply penalty and move to next point
         await Team.findByIdAndUpdate(
-          currentTeam._id,
+          updatedTeam._id,
           { 
             $set: { 
               penaltyEndTime: penaltyEndTime,
@@ -268,15 +284,8 @@ export async function POST(request: Request) {
           attempts: attempts
         });
       }
-      // First attempt - just increment attempts
       else {
         console.log('Processing first attempt');
-        await Team.findByIdAndUpdate(
-          currentTeam._id,
-          { $set: { attempts: attempts } },
-          { new: true }
-        );
-        
         return NextResponse.json({
           correct: false,
           message: 'טעית, נסה שוב',
