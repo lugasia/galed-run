@@ -28,37 +28,46 @@ export async function GET(
     const cleanedTeamId = params.teamId.replace(/[@/]/g, '');
     console.log('Cleaned teamId:', cleanedTeamId);
 
-    // Try different methods to find the team
+    // Find team first by ID, then by uniqueLink
     let team = null;
-
-    // 1. Try by exact ID match
-    if (mongoose.Types.ObjectId.isValid(cleanedTeamId)) {
-      team = await Team.findById(cleanedTeamId).populate({
-        path: 'currentRoute',
-        populate: {
-          path: 'points',
-          model: 'Point'
+    let searchId = cleanedTeamId;
+    
+    try {
+      if (mongoose.Types.ObjectId.isValid(cleanedTeamId)) {
+        console.log('Valid ObjectId, searching by ID...');
+        team = await Team.findById(cleanedTeamId)
+          .populate({
+            path: 'currentRoute',
+            populate: {
+              path: 'points',
+              model: 'Point'
+            }
+          });
+        if (team) {
+          console.log('Team found by ID');
         }
-      });
-      if (team) console.log('Found team by ID');
+      }
+    } catch (err) {
+      console.error('Error searching by ID:', err);
     }
 
-    // 2. Try by exact uniqueLink match
     if (!team) {
-      team = await Team.findOne({ uniqueLink: cleanedTeamId }).populate({
-        path: 'currentRoute',
-        populate: {
-          path: 'points',
-          model: 'Point'
-        }
-      });
-      if (team) console.log('Found team by exact uniqueLink');
-    }
-
-    // 3. Try by uniqueLink ending
-    if (!team) {
+      console.log('Team not found by ID, searching by uniqueLink...');
+      
+      // Remove @ from the beginning if it exists
+      if (searchId.startsWith('@')) {
+        searchId = searchId.substring(1);
+      }
+      
+      // Check if the teamId is a full URL
+      if (searchId.includes('/game/')) {
+        const urlParts = searchId.split('/');
+        searchId = urlParts[urlParts.length - 1];
+        console.log('Extracted teamId from URL:', searchId);
+      }
+      
       team = await Team.findOne({
-        uniqueLink: { $regex: cleanedTeamId + '$' }
+        uniqueLink: { $regex: searchId + '$' }
       }).populate({
         path: 'currentRoute',
         populate: {
@@ -66,20 +75,32 @@ export async function GET(
           model: 'Point'
         }
       });
-      if (team) console.log('Found team by uniqueLink ending');
-    }
-
-    // If still no team found, return debug info
-    if (!team) {
-      console.log('No team found with any method');
-      return NextResponse.json({
-        message: 'Team not found',
-        debug: {
-          originalTeamId: params.teamId,
-          cleanedTeamId: cleanedTeamId,
-          searchId: cleanedTeamId
+      
+      if (team) {
+        console.log('Team found by uniqueLink');
+        
+        // Validate team data
+        if (!team.currentRoute) {
+          console.error('Team found but has no route:', team._id);
+          return NextResponse.json({ message: 'שגיאה בטעינת המסלול' }, { status: 500 });
         }
-      }, { status: 404 });
+        
+        if (!team.currentRoute.points || team.currentRoute.points.length === 0) {
+          console.error('Team route has no points:', team.currentRoute._id);
+          return NextResponse.json({ message: 'שגיאה בטעינת הנקודות' }, { status: 500 });
+        }
+        
+        // Fix currentPointIndex if it's out of bounds
+        if (team.currentPointIndex >= team.currentRoute.points.length) {
+          console.log('Fixing out of bounds currentPointIndex:', team.currentPointIndex, 'to', team.currentRoute.points.length - 1);
+          team.currentPointIndex = team.currentRoute.points.length - 1;
+          await team.save();
+        }
+        
+        console.log('Team data validated successfully');
+      } else {
+        console.log('Team not found by uniqueLink either');
+      }
     }
 
     return NextResponse.json({ 
@@ -87,7 +108,7 @@ export async function GET(
       debug: {
         originalTeamId: params.teamId,
         cleanedTeamId: cleanedTeamId,
-        searchId: cleanedTeamId,
+        searchId: searchId,
         foundMethod: team ? 'success' : 'not_found'
       }
     });
