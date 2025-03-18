@@ -431,8 +431,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         );
         setCompletedPoints(completed);
 
-        // Use the server's currentPointIndex directly
-        // Only update it if we're sure the server index is wrong
+        // Find the last completed point index
         const lastCompletedPointIndex = team.currentRoute.points.findIndex(
           point => point._id === team.visitedPoints[team.visitedPoints.length - 1]
         );
@@ -440,13 +439,18 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         console.log('Point index validation:', {
           serverIndex: team.currentPointIndex,
           lastCompletedPointIndex,
-          shouldUpdateIndex: lastCompletedPointIndex !== -1 && team.currentPointIndex < lastCompletedPointIndex
+          shouldUpdateIndex: lastCompletedPointIndex !== -1 && team.currentPointIndex <= lastCompletedPointIndex
         });
 
-        // Only override server index if it's clearly wrong
-        if (lastCompletedPointIndex !== -1 && team.currentPointIndex < lastCompletedPointIndex) {
-          team.currentPointIndex = lastCompletedPointIndex + 1;
-          console.log('Correcting point index to:', team.currentPointIndex);
+        // Update index if we've completed the current point
+        if (lastCompletedPointIndex !== -1) {
+          const currentPoint = team.currentRoute.points[team.currentPointIndex];
+          const hasCompletedCurrentPoint = team.visitedPoints.includes(currentPoint._id);
+          
+          if (hasCompletedCurrentPoint && lastCompletedPointIndex + 1 < team.currentRoute.points.length) {
+            team.currentPointIndex = lastCompletedPointIndex + 1;
+            console.log('Advancing to next point:', team.currentPointIndex);
+          }
         }
       }
     }
