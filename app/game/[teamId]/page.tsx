@@ -432,9 +432,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         );
         setCompletedPoints(completed);
       }
-
-      // Use server's currentPointIndex directly
-      team.currentPointIndex = team.currentPointIndex;
     }
 
     // Get current point
