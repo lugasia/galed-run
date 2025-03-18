@@ -183,38 +183,50 @@ export async function POST(request: Request) {
     // No longer creating QUESTION_ANSWERED events
     
     if (!correct) {
-      // Get the current team state with a fresh query
-      const currentTeam = await Team.findById(team._id).populate({
-        path: 'currentRoute',
-        populate: {
-          path: 'points',
-          model: 'Point'
-        }
-      });
+      // Get the current team state with a fresh query and no cache
+      const currentTeam = await Team.findById(team._id)
+        .populate({
+          path: 'currentRoute',
+          populate: {
+            path: 'points',
+            model: 'Point'
+          }
+        })
+        .exec(); // Use exec() instead of lean() to get a proper typed document
 
       if (!currentTeam) {
         console.error('Could not find team for attempts update');
         return NextResponse.json({ message: 'קבוצה לא נמצאה' }, { status: 404 });
       }
 
+      // Log current state
+      console.log('Team state before update:', {
+        teamId: currentTeam._id,
+        currentAttempts: currentTeam.attempts,
+        penaltyEndTime: currentTeam.penaltyEndTime
+      });
+
       // Increment attempts counter
       const attempts = (currentTeam.attempts || 0) + 1;
-      console.log('Current attempts:', currentTeam.attempts, 'New attempts:', attempts);
+      console.log('Incrementing attempts from', currentTeam.attempts, 'to', attempts);
       
       // Second attempt (after first wrong answer)
       if (attempts === 2) {
+        console.log('Processing second attempt, applying penalty');
         const penaltyMinutes = currentTeam.currentRoute?.settings?.penaltyTime || 2;
         const penaltyTime = penaltyMinutes * 60 * 1000;
+        const penaltyEndTime = new Date(Date.now() + penaltyTime);
         
         // Apply penalty and set hint level to 1 (zoom out)
-        await Team.updateOne(
-          { _id: team._id },
+        await Team.findByIdAndUpdate(
+          currentTeam._id,
           { 
             $set: { 
-              penaltyEndTime: new Date(Date.now() + penaltyTime),
+              penaltyEndTime: penaltyEndTime,
               attempts: attempts
             }
-          }
+          },
+          { new: true }
         );
         
         // Request hint level 1 (zoom out)
@@ -223,7 +235,7 @@ export async function POST(request: Request) {
         return NextResponse.json({
           correct: false,
           message: 'טעית, המתן לזמן העונשין',
-          penaltyEndTime: new Date(Date.now() + penaltyTime).toISOString(),
+          penaltyEndTime: penaltyEndTime.toISOString(),
           attempts: attempts,
           hintRequested: true,
           hintLevel: 1
@@ -231,33 +243,38 @@ export async function POST(request: Request) {
       }
       // Third attempt (after penalty, with zoom out image)
       else if (attempts === 3) {
+        console.log('Processing third attempt, moving to next point');
         const penaltyMinutes = currentTeam.currentRoute?.settings?.penaltyTime || 2;
         const penaltyTime = penaltyMinutes * 60 * 1000;
+        const penaltyEndTime = new Date(Date.now() + penaltyTime);
         
         // Apply penalty and move to next point
-        await Team.updateOne(
-          { _id: team._id },
+        await Team.findByIdAndUpdate(
+          currentTeam._id,
           { 
             $set: { 
-              penaltyEndTime: new Date(Date.now() + penaltyTime),
+              penaltyEndTime: penaltyEndTime,
               attempts: 0 // Reset attempts for next point
             },
             $inc: { currentPointIndex: 1 }
-          }
+          },
+          { new: true }
         );
 
         return NextResponse.json({
           correct: false,
           message: 'טעית, המתן לזמן העונשין ואז רוץ לנקודה הבאה',
-          penaltyEndTime: new Date(Date.now() + penaltyTime).toISOString(),
+          penaltyEndTime: penaltyEndTime.toISOString(),
           attempts: attempts
         });
       }
       // First attempt - just increment attempts
       else {
-        await Team.updateOne(
-          { _id: team._id },
-          { $set: { attempts: attempts } }
+        console.log('Processing first attempt');
+        await Team.findByIdAndUpdate(
+          currentTeam._id,
+          { $set: { attempts: attempts } },
+          { new: true }
         );
         
         return NextResponse.json({
