@@ -56,9 +56,25 @@ async function requestAutomaticHint(teamId: string, pointId: string, hintLevel: 
 const completionTimes = {}; // Store team completion times
 
 export async function POST(request: Request) {
+  let debugInfo = {
+    stage: 'start',
+    error: null as any,
+    teamId: null as string | null,
+    pointId: null as string | null,
+    teamFound: false,
+    hasRoute: false,
+    currentPointIndex: null as number | null,
+    visitedPoints: [] as string[]
+  };
+
   try {
+    debugInfo.stage = 'init';
     await dbConnect();
     const { teamId, pointId, answer } = await request.json();
+    
+    debugInfo.teamId = teamId;
+    debugInfo.pointId = pointId;
+    debugInfo.stage = 'after_parse_request';
 
     console.log('Processing answer request:', {
       teamId,
@@ -76,9 +92,10 @@ export async function POST(request: Request) {
       mongoose.model('Point', PointSchema);
     }
 
+    debugInfo.stage = 'finding_team';
     // Find team first by ID, then by uniqueLink
     let team: TeamWithRoute | null = null;
-    let searchId = teamId; // Declare searchId at the top level
+    let searchId = teamId;
     
     try {
       if (mongoose.Types.ObjectId.isValid(teamId)) {
@@ -91,35 +108,25 @@ export async function POST(request: Request) {
               model: 'Point'
             }
           });
-        if (team) {
-          console.log('Team found by ID:', {
-            teamId: team._id,
-            currentPointIndex: team.currentPointIndex,
-            visitedPoints: team.visitedPoints
-          });
-        }
       }
     } catch (err) {
       console.error('Error searching by ID:', err);
+      debugInfo.error = err;
     }
 
     if (!team) {
+      debugInfo.stage = 'searching_by_link';
       console.log('Team not found by ID, searching by uniqueLink...');
       
-      // Remove @ from the beginning if it exists
       if (searchId.startsWith('@')) {
         searchId = searchId.substring(1);
       }
       
-      // Check if the teamId is a full URL
       if (searchId.includes('/game/')) {
-        // Extract the last part of the URL (the actual teamId)
         const urlParts = searchId.split('/');
         searchId = urlParts[urlParts.length - 1];
-        console.log('Extracted teamId from URL:', searchId);
       }
       
-      // First try to find by exact uniqueLink match
       team = await (Team as Model<TeamWithRoute>).findOne({
         uniqueLink: { $regex: searchId + '$' }
       }).populate({
@@ -129,84 +136,92 @@ export async function POST(request: Request) {
           model: 'Point'
         }
       });
-      
-      if (team) {
-        console.log('Team found by uniqueLink:', {
-          teamId: team._id,
-          currentPointIndex: team.currentPointIndex,
-          visitedPoints: team.visitedPoints
-        });
-      } else {
-        console.log('Team not found by uniqueLink either');
-      }
     }
 
     if (!team) {
-      console.log('No team found with ID/uniqueLink:', teamId);
+      debugInfo.stage = 'team_not_found';
+      console.error('No team found with ID/uniqueLink:', teamId);
       return NextResponse.json({ 
         message: 'קבוצה לא נמצאה',
-        debug: {
-          originalTeamId: teamId,
-          searchId: searchId
-        }
+        debug: debugInfo
       }, { status: 404 });
     }
 
-    // Check if team has already completed the route
-    if (team.currentPointIndex >= team.currentRoute.points.length) {
-      console.log('Team has already completed the route');
-      return NextResponse.json({ 
-        correct: true,
-        message: 'כל הכבוד! סיימתם את המסלול',
-        isLastPoint: true
-      });
-    }
+    debugInfo.teamFound = true;
+    debugInfo.hasRoute = !!team.currentRoute;
+    debugInfo.currentPointIndex = team.currentPointIndex;
+    debugInfo.visitedPoints = team.visitedPoints?.map(id => id.toString()) || [];
+    debugInfo.stage = 'team_found';
 
-    // Validate that the point exists
+    // Validate current point index and route
     if (!team.currentRoute || !team.currentRoute.points || team.currentRoute.points.length === 0) {
+      debugInfo.stage = 'route_validation_failed';
       console.error('Team has no route or points array is empty');
-      return NextResponse.json({ message: 'שגיאה בטעינת הנקודה' }, { status: 500 });
+      return NextResponse.json({ 
+        message: 'שגיאה בטעינת הנקודה',
+        debug: debugInfo
+      }, { status: 500 });
     }
 
-    // Validate current point index
     if (team.currentPointIndex < 0 || team.currentPointIndex >= team.currentRoute.points.length) {
+      debugInfo.stage = 'point_index_validation_failed';
       console.error('Current point index out of bounds:', team.currentPointIndex);
-      return NextResponse.json({ message: 'שגיאה בטעינת הנקודה' }, { status: 500 });
+      return NextResponse.json({ 
+        message: 'שגיאה בטעינת הנקודה',
+        debug: debugInfo
+      }, { status: 500 });
     }
 
+    debugInfo.stage = 'processing_answer';
     const point = team.currentRoute.points[team.currentPointIndex];
+    
     if (!point) {
+      debugInfo.stage = 'point_not_found';
       console.error('Current point is undefined');
-      return NextResponse.json({ message: 'נקודה לא נמצאה' }, { status: 404 });
+      return NextResponse.json({ 
+        message: 'נקודה לא נמצאה',
+        debug: debugInfo
+      }, { status: 404 });
     }
 
     if (point._id.toString() !== pointId) {
+      debugInfo.stage = 'point_id_mismatch';
       console.error('Point ID mismatch:', {
         expected: point._id.toString(),
         received: pointId,
         currentPointIndex: team.currentPointIndex
       });
-      return NextResponse.json({ message: 'נקודה לא נמצאה' }, { status: 404 });
+      return NextResponse.json({ 
+        message: 'נקודה לא נמצאה',
+        debug: debugInfo
+      }, { status: 404 });
     }
 
     // Validate that the point has a question
     if (!point.question || !point.question.correctAnswer) {
+      debugInfo.stage = 'question_validation_failed';
       console.error('Point has no question or correct answer:', {
         pointId: point._id,
         hasQuestion: !!point.question,
         hasCorrectAnswer: !!(point.question && point.question.correctAnswer)
       });
-      return NextResponse.json({ message: 'שגיאה בטעינת השאלה' }, { status: 500 });
+      return NextResponse.json({ 
+        message: 'שגיאה בטעינת השאלה',
+        debug: debugInfo
+      }, { status: 500 });
     }
 
+    debugInfo.stage = 'validating_answer';
     const correct = point.question.correctAnswer === answer;
     console.log('Answer validation:', {
       submitted: answer,
       correct: point.question.correctAnswer,
-      isCorrect: correct
+      isCorrect: correct,
+      debugInfo
     });
 
     if (!correct) {
+      debugInfo.stage = 'processing_incorrect_answer';
       // Get the current team state with a fresh query and no cache
       const currentTeam = await Team.findById(team._id)
         .populate({
@@ -320,8 +335,10 @@ export async function POST(request: Request) {
 
     // If answer is correct, reset attempts counter and update visited points
     console.log('Processing correct answer, updating team state');
+    
+    // Use the actual team._id instead of the teamId from the request
     const updateResult = await Team.findByIdAndUpdate(
-      teamId,
+      team._id, // Use team._id instead of teamId from request
       {
         $set: { attempts: 0 },
         $push: { visitedPoints: pointId }
@@ -335,14 +352,19 @@ export async function POST(request: Request) {
     });
 
     if (!updateResult) {
+      debugInfo.stage = 'update_failed';
       console.error('Failed to update team after correct answer');
-      return NextResponse.json({ message: 'שגיאה בעדכון הקבוצה' }, { status: 500 });
+      return NextResponse.json({ 
+        message: 'שגיאה בעדכון הקבוצה',
+        debug: debugInfo
+      }, { status: 500 });
     }
 
     console.log('Team updated successfully after correct answer:', {
       teamId: updateResult._id,
       currentPointIndex: updateResult.currentPointIndex,
-      visitedPoints: updateResult.visitedPoints
+      visitedPoints: updateResult.visitedPoints,
+      debugInfo
     });
 
     // עדכון האינדקס לנקודה הבאה אחרי הנקודה האחרונה שהושלמה
@@ -365,11 +387,21 @@ export async function POST(request: Request) {
       team: updateResult
     });
   } catch (error) {
-    console.error('Error processing answer:', error);
+    debugInfo.stage = 'error_caught';
+    debugInfo.error = error instanceof Error ? {
+      message: error.message,
+      stack: error.stack
+    } : 'Unknown error';
+    
+    console.error('Error processing answer:', {
+      error,
+      debugInfo
+    });
+    
     return NextResponse.json(
       { 
         message: 'שגיאה בעיבוד התשובה',
-        debug: error instanceof Error ? error.message : 'Unknown error'
+        debug: debugInfo
       },
       { status: 500 }
     );
