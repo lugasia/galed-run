@@ -137,7 +137,12 @@ export default function TeamsPage() {
         },
         body: JSON.stringify({
           _id: teamId,
-          action: 'restart'
+          startTime: null,
+          currentPointIndex: 0,
+          visitedPoints: [],
+          attempts: 0,
+          penaltyEndTime: null,
+          hintRequested: null
         }),
       });
 
@@ -146,6 +151,7 @@ export default function TeamsPage() {
       }
 
       await fetchTeams();
+      alert('המירוץ אופס בהצלחה!');
     } catch (error) {
       console.error('Error restarting race:', error);
       alert('שגיאה באיפוס המירוץ');
@@ -221,6 +227,24 @@ export default function TeamsPage() {
     }
   };
 
+  const handleStartAllWaitingTeams = async () => {
+    try {
+      const response = await fetch('/api/teams/start-all-waiting', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to start races');
+      await fetchTeams();
+      alert('כל המירוצים התחילו!');
+    } catch (error) {
+      console.error('Error starting races:', error);
+      alert('שגיאה בהתחלת המירוצים');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -267,8 +291,16 @@ export default function TeamsPage() {
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-medium
                   hover:shadow-lg transform hover:scale-[1.02] transition-all"
               >
-                הוספת קבוצה
+                הוסף קבוצה חדשה
               </button>
+              {teams.some(team => !team.startTime) && (
+                <button
+                  onClick={handleStartAllWaitingTeams}
+                  className="bg-green-600 text-white px-6 py-2 rounded-lg shadow-md hover:bg-green-700 transition-colors"
+                >
+                  התחל מירוץ לכל הממתינים
+                </button>
+              )}
             </div>
           </motion.div>
 
