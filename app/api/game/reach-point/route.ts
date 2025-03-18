@@ -82,40 +82,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'זו לא הנקודה הנוכחית במסלול' }, { status: 400 });
     }
 
-    // Check if point was already visited
+    // Check if point was already visited (meaning the question was answered correctly)
     const pointAlreadyVisited = team.visitedPoints.some(
       visitedPointId => visitedPointId.toString() === pointId
     );
 
-    if (pointAlreadyVisited) {
-      console.log('Point already visited');
-      return NextResponse.json({ 
-        message: 'כבר ביקרת בנקודה זו',
-        team: team
-      });
-    }
-
-    // Get the previous point (if exists)
-    const previousPointIndex = team.currentPointIndex - 1;
-    const previousPoint = previousPointIndex >= 0 ? team.currentRoute.points[previousPointIndex] : null;
-    
-    // Check if we should increment the index:
-    // 1. If this is the first point (index 0), no need to check previous point
-    // 2. If previous point exists, it must be visited
-    const shouldIncrementIndex = team.currentPointIndex === 0 || 
-      (previousPoint && team.visitedPoints.includes(previousPoint._id.toString()));
-
-    // Update visited points and current point index if needed
+    // If the point was already visited (answered correctly), increment the index
     const updateResult = await Team.findByIdAndUpdate(
       team._id,
-      shouldIncrementIndex ? 
-        { 
-          $push: { visitedPoints: pointId },
-          $inc: { currentPointIndex: 1 }
-        } :
-        { 
-          $push: { visitedPoints: pointId }
-        },
+      pointAlreadyVisited ? 
+        { $inc: { currentPointIndex: 1 } } :
+        {},
       { new: true }
     ).populate({
       path: 'currentRoute',
@@ -129,7 +106,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ 
       success: true,
-      message: 'הנקודה עודכנה בהצלחה',
+      message: pointAlreadyVisited ? 'עוברים לנקודה הבאה' : 'הנקודה עודכנה בהצלחה',
       team: updateResult
     });
   } catch (error) {

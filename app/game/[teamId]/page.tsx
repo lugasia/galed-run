@@ -11,6 +11,8 @@ import { motion } from 'framer-motion';
 declare global {
   interface Window {
     debugInfo: any;
+    setGPS: (lat: number, lng: number) => void;
+    debugState: () => void;
   }
 }
 
@@ -130,6 +132,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   const [disabledOptions, setDisabledOptions] = useState<string[]>([]);
   const [gameCompleted, setGameCompleted] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null); // Reference to store the timer interval
+  const [showManualGPS, setShowManualGPS] = useState(false);
+  const [manualLat, setManualLat] = useState('');
+  const [manualLng, setManualLng] = useState('');
 
   useEffect(() => {
     fetchTeam();
@@ -284,6 +289,24 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       return () => clearInterval(interval);
     }
   }, [penaltyEndTime, team, setShowQuestion, setMessage, setCurrentHintLevel, setPenaltyTimeLeft, setPenaltyEndTime]);
+
+  useEffect(() => {
+    console.log('Current game state:', {
+      currentPointIndex: team?.currentPointIndex,
+      visitedPoints: team?.visitedPoints,
+      currentPoint: currentPoint,
+      completedPoints
+    });
+  }, [team, currentPoint, completedPoints]);
+
+  const handleManualGPS = (e: React.FormEvent) => {
+    e.preventDefault();
+    const lat = parseFloat(manualLat);
+    const lng = parseFloat(manualLng);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      setUserLocation({ lat, lng });
+    }
+  };
 
   const fetchTeam = async () => {
     try {
@@ -665,6 +688,45 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     return currentPoint.images.zoomIn;
   };
 
+  // Add global debug functions
+  useEffect(() => {
+    window.setGPS = (lat: number, lng: number) => {
+      console.log(`Setting GPS coordinates to: ${lat}, ${lng}`);
+      setUserLocation([lat, lng] as [number, number]);
+    };
+
+    window.debugState = () => {
+      console.log('Current Game State:', {
+        team: {
+          name: team?.name,
+          currentPointIndex: team?.currentPointIndex,
+          visitedPoints: team?.visitedPoints,
+          attempts: team?.attempts
+        },
+        currentPoint,
+        userLocation,
+        showQuestion,
+        message,
+        timestamp: new Date().toISOString()
+      });
+    };
+
+    return () => {
+      delete window.setGPS;
+      delete window.debugState;
+    };
+  }, [team, currentPoint, userLocation, showQuestion, message]);
+
+  // Add debug logging for counter changes
+  useEffect(() => {
+    console.log('Counter Debug:', {
+      currentPointIndex: team?.currentPointIndex,
+      visitedPoints: team?.visitedPoints,
+      attempts: team?.attempts,
+      timestamp: new Date().toISOString()
+    });
+  }, [team?.currentPointIndex, team?.visitedPoints, team?.attempts]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -789,7 +851,63 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
   const isLastPoint = team?.currentPointIndex === points.length - 1;
 
+  const debugPanel = (
+    <div className="bg-white p-4 rounded-lg shadow mb-4">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-lg font-semibold">Debug Panel</h3>
+        <button
+          onClick={() => setShowManualGPS(!showManualGPS)}
+          className="text-blue-500 hover:text-blue-700"
+        >
+          {showManualGPS ? 'הסתר GPS ידני' : 'הצג GPS ידני'}
+        </button>
+      </div>
+      
+      {showManualGPS && (
+        <form onSubmit={handleManualGPS} className="space-y-2">
+          <div className="flex space-x-2">
+            <input
+              type="text"
+              value={manualLat}
+              onChange={(e) => setManualLat(e.target.value)}
+              placeholder="Latitude"
+              className="border p-1 rounded"
+            />
+            <input
+              type="text"
+              value={manualLng}
+              onChange={(e) => setManualLng(e.target.value)}
+              placeholder="Longitude"
+              className="border p-1 rounded"
+            />
+            <button type="submit" className="bg-blue-500 text-white px-3 py-1 rounded">
+              עדכן מיקום
+            </button>
+          </div>
+        </form>
+      )}
+      
+      <div className="mt-2 text-sm space-y-1">
+        <p>מיקום נוכחי: {userLocation ? `${userLocation.lat}, ${userLocation.lng}` : 'לא זמין'}</p>
+        <p>אינדקס נקודה: {team?.currentPointIndex}</p>
+        <p>נקודות שהושלמו: {team?.visitedPoints?.length || 0}</p>
+        <p>מספר ניסיונות: {team?.attempts || 0}</p>
+      </div>
+    </div>
+  );
+
+  console.log('Rendering game page with state:', {
+    currentPointIndex: team?.currentPointIndex,
+    visitedPoints: team?.visitedPoints,
+    currentPoint,
+    userLocation,
+    completedPoints
+  });
+
   return (
+    <div className="container mx-auto px-4 py-8">
+      {debugPanel}
+      <div className="flex flex-col h-screen bg-gray-50">
     <div className="flex flex-col h-screen bg-gray-50">
       <div className="h-3"></div>
       <motion.div 
