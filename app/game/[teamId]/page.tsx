@@ -431,10 +431,20 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           (point: Point) => team.visitedPoints.includes(point._id)
         );
         setCompletedPoints(completed);
+
+        // Check if current point is completed and advance if needed
+        const currentPoint = team.currentRoute.points[team.currentPointIndex];
+        if (currentPoint && team.visitedPoints.includes(currentPoint._id)) {
+          // Only advance if there are more points
+          if (team.currentPointIndex < team.currentRoute.points.length - 1) {
+            team.currentPointIndex++;
+            setShowQuestion(false); // Reset question state for next point
+          }
+        }
       }
     }
 
-    // Get current point
+    // Get current point after potential index update
     const currentPoint = team.currentRoute?.points[team.currentPointIndex];
     const hasAnsweredCorrectly = team.visitedPoints?.includes(currentPoint?._id);
     
@@ -449,15 +459,14 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       setShowQuestion(false);
     }
     
-    // בדוק אם יש לקבוצה רמז פעיל
+    // Check for hints
     if (team?.hintRequested) {
-      // וודא שהרמז הוא עבור הנקודה הנוכחית
       if (team.hintRequested.pointIndex === team.currentPointIndex) {
         setCurrentHintLevel(team.hintRequested.hintLevel);
       }
     }
     
-    // Check if team has a penalty
+    // Check for penalties
     if (team?.penaltyEndTime) {
       const penaltyEnd = new Date(team.penaltyEndTime);
       if (penaltyEnd > new Date()) {
@@ -465,7 +474,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }
     }
 
-    // עדכן את אובייקט הקבוצה
+    // Update team state
     setTeam(team);
   };
 
