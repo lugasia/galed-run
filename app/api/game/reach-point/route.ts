@@ -57,30 +57,66 @@ export async function POST(request: Request) {
       }, { status: 404 });
     }
 
+    // Validate that the team has a route and points
+    if (!team.currentRoute || !team.currentRoute.points || team.currentRoute.points.length === 0) {
+      console.error('Team has no route or points');
+      return NextResponse.json({ message: 'שגיאה בטעינת המסלול' }, { status: 500 });
+    }
+
+    // Validate current point index
+    if (team.currentPointIndex < 0 || team.currentPointIndex >= team.currentRoute.points.length) {
+      console.error('Current point index out of bounds:', team.currentPointIndex);
+      return NextResponse.json({ message: 'שגיאה בטעינת הנקודה' }, { status: 500 });
+    }
+
+    // Get the current point from the route
+    const currentPoint = team.currentRoute.points[team.currentPointIndex];
+    if (!currentPoint) {
+      console.error('Current point not found');
+      return NextResponse.json({ message: 'שגיאה בטעינת הנקודה' }, { status: 500 });
+    }
+
+    // Verify this is the correct point
+    if (currentPoint._id.toString() !== pointId) {
+      console.error('Point ID mismatch. Expected:', currentPoint._id.toString(), 'Got:', pointId);
+      return NextResponse.json({ message: 'זו לא הנקודה הנוכחית במסלול' }, { status: 400 });
+    }
+
+    // Check if point was already visited
+    const pointAlreadyVisited = team.visitedPoints.some(
+      visitedPointId => visitedPointId.toString() === pointId
+    );
+
+    if (pointAlreadyVisited) {
+      console.log('Point already visited');
+      return NextResponse.json({ 
+        message: 'כבר ביקרת בנקודה זו',
+        team: team
+      });
+    }
+
     // Update visited points and current point index
-    const updateResult = await Team.updateOne(
-      { _id: team._id },
+    const updateResult = await Team.findByIdAndUpdate(
+      team._id,
       { 
         $push: { visitedPoints: pointId },
         $inc: { currentPointIndex: 1 }
-      }
-    ).exec();
-    
-    console.log('Update result for reaching point:', updateResult);
-
-    // Get updated team data
-    const updatedTeam = await Team.findById(team._id).populate({
+      },
+      { new: true }
+    ).populate({
       path: 'currentRoute',
       populate: {
         path: 'points',
         model: 'Point'
       }
     });
+    
+    console.log('Update result for reaching point:', updateResult);
 
     return NextResponse.json({ 
       success: true,
       message: 'הנקודה עודכנה בהצלחה',
-      team: updatedTeam
+      team: updateResult
     });
   } catch (error) {
     console.error('Error updating point:', error);
