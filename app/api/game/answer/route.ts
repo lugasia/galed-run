@@ -295,26 +295,36 @@ export async function POST(request: Request) {
     }
 
     // On correct answer:
-    // Reset attempts counter only
+    // Reset attempts counter and update point index
     try {
-      const updateResult = await (Team as Model<TeamWithRoute>).updateOne(
-        { _id: team._id },
+      const updateResult = await (Team as Model<TeamWithRoute>).findByIdAndUpdate(
+        team._id,
         { 
-          $set: { attempts: 0 }
+          $set: { attempts: 0 },
+          $push: { visitedPoints: pointId },
+          $inc: { currentPointIndex: 1 }
+        },
+        { new: true }
+      ).populate({
+        path: 'currentRoute',
+        populate: {
+          path: 'points',
+          model: 'Point'
         }
-      ).exec();
+      }).exec();
       
       console.log('Update result for correct answer:', updateResult);
+
+      // Return success message with updated team data
+      return NextResponse.json({ 
+        correct: true,
+        message: 'צדקת! רוץ לנקודה הבאה',
+        team: updateResult
+      });
     } catch (updateError) {
       console.error('Error updating team after correct answer:', updateError);
       return NextResponse.json({ message: 'שגיאה בעיבוד התשובה' }, { status: 500 });
     }
-
-    // Return success message without changing point or index
-    return NextResponse.json({ 
-      correct: true,
-      message: 'צדקת! רוץ לנקודה כדי להמשיך',
-    });
   } catch (error) {
     console.error('Error processing answer:', error);
     return NextResponse.json(

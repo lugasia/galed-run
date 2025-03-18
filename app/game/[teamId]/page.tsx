@@ -485,15 +485,18 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         setShowQuestion(false); // הסתר את השאלה אחרי תשובה נכונה
         setDisabledOptions([]); // איפוס האפשרויות החסומות
         
-        // תמיד מציג הודעה על הנקודה הנוכחית
-        setMessage(`צדקת! רוץ לנקודה "${currentPoint.name}"`);
+        // עדכון הנקודות שהושלמו והקבוצה
+        if (data.team) {
+          setTeam(data.team);
+          if (data.team.currentRoute?.points) {
+            const completed = data.team.currentRoute.points.filter(
+              (point: Point) => data.team.visitedPoints.includes(point._id)
+            );
+            setCompletedPoints(completed);
+          }
+        }
         
-        // עדכון הנקודות שהושלמו
-        const updatedTeam = { ...team };
-        updatedTeam.visitedPoints = [...(team.visitedPoints || []), currentPoint._id];
-        setTeam(updatedTeam);
-        
-        await fetchTeam();
+        setMessage(data.message || 'צדקת! רוץ לנקודה הבאה');
       } else {
         // תשובה שגויה
         setMessage(data.message || 'טעית, נסה שוב');
