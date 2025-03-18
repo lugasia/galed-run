@@ -142,6 +142,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       const watchId = navigator.geolocation.watchPosition(
         async (position) => {
           const newLocation: [number, number] = [position.coords.latitude, position.coords.longitude];
+          console.log('GPS Update:', { newLocation, timestamp: new Date().toISOString() });
           setUserLocation(newLocation);
 
           // Send location update to server
@@ -178,8 +179,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         },
         {
           enableHighAccuracy: true,
-          maximumAge: 10000, // Allow cached positions up to 10 seconds old
-          timeout: 10000 // Wait up to 10 seconds for a position
+          maximumAge: 5000, // Allow cached positions up to 5 seconds old
+          timeout: 30000 // Wait up to 30 seconds for a position
         }
       );
 
@@ -443,22 +444,12 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           currentPoints: team.currentRoute.points.map(p => ({ id: p._id, name: p.name }))
         });
 
-        // Update index if we've completed the current point
-        if (lastCompletedPointIndex !== -1) {
-          // אם הנקודה האחרונה שהושלמה היא הנקודה הנוכחית, התקדם לנקודה הבאה
-          const currentPoint = team.currentRoute.points[team.currentPointIndex];
-          const hasCompletedCurrentPoint = team.visitedPoints.includes(currentPoint._id);
-          
-          if (hasCompletedCurrentPoint) {
-            // אם זו לא הנקודה האחרונה במסלול, התקדם לנקודה הבאה
-            if (lastCompletedPointIndex + 1 < team.currentRoute.points.length) {
-              team.currentPointIndex = lastCompletedPointIndex + 1;
-              console.log('Advancing to next point:', team.currentPointIndex);
-            }
-          } else {
-            // אם הנקודה הנוכחית לא הושלמה, השאר את האינדקס על הנקודה הנוכחית
-            team.currentPointIndex = Math.min(lastCompletedPointIndex + 1, team.currentRoute.points.length - 1);
-            console.log('Setting current point to:', team.currentPointIndex);
+        // רק אם אנחנו בנקודה הנוכחית והיא הושלמה, נתקדם לנקודה הבאה
+        if (lastCompletedPointIndex !== -1 && lastCompletedPointIndex === team.currentPointIndex) {
+          const nextPointIndex = lastCompletedPointIndex + 1;
+          if (nextPointIndex < team.currentRoute.points.length) {
+            console.log('Moving to next point:', nextPointIndex);
+            team.currentPointIndex = nextPointIndex;
           }
         }
       }
