@@ -132,9 +132,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   const [disabledOptions, setDisabledOptions] = useState<string[]>([]);
   const [gameCompleted, setGameCompleted] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const [showManualGPS, setShowManualGPS] = useState(false);
-  const [manualLat, setManualLat] = useState('');
-  const [manualLng, setManualLng] = useState('');
 
   useEffect(() => {
     fetchTeam();
@@ -309,18 +306,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     });
   }, [team, team?.currentRoute?.points, team?.currentPointIndex, team?.visitedPoints, completedPoints]);
 
-  const handleManualGPS = (e: React.FormEvent) => {
-    e.preventDefault();
-    const lat = parseFloat(manualLat);
-    const lng = parseFloat(manualLng);
-    if (!isNaN(lat) && !isNaN(lng)) {
-      setUserLocation([lat, lng]);
-      setShowManualGPS(false);
-      setManualLat('');
-      setManualLng('');
-    }
-  };
-
   const fetchTeam = async () => {
     try {
       console.log('Fetching team data...');
@@ -429,7 +414,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   // פונקציה לעיבוד נתוני הקבוצה
   const processTeamData = (team: Team) => {
     console.log('processTeamData debug:', {
-      currentPointIndex: team.currentPointIndex,
+      serverPointIndex: team.currentPointIndex,
       totalPoints: team.currentRoute?.points?.length,
       visitedPoints: team.visitedPoints,
       isRouteCompleted: team.currentPointIndex >= (team.currentRoute?.points?.length || 0),
@@ -446,29 +431,22 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         );
         setCompletedPoints(completed);
 
-        // עדכון האינדקס לנקודה הבאה אחרי הנקודה האחרונה שהושלמה
+        // Use the server's currentPointIndex directly
+        // Only update it if we're sure the server index is wrong
         const lastCompletedPointIndex = team.currentRoute.points.findIndex(
           point => point._id === team.visitedPoints[team.visitedPoints.length - 1]
         );
         
-        console.log('Point index calculation:', {
+        console.log('Point index validation:', {
+          serverIndex: team.currentPointIndex,
           lastCompletedPointIndex,
-          visitedPoints: team.visitedPoints,
-          currentPoints: team.currentRoute.points.map(p => ({ id: p._id, name: p.name }))
+          shouldUpdateIndex: lastCompletedPointIndex !== -1 && team.currentPointIndex < lastCompletedPointIndex
         });
 
-        if (lastCompletedPointIndex !== -1) {
-          // אם יש נקודה שהושלמה
-          if (lastCompletedPointIndex + 1 < team.currentRoute.points.length) {
-            // אם יש נקודה הבאה, עבור אליה
-            team.currentPointIndex = lastCompletedPointIndex + 1;
-          } else {
-            // אם זו הנקודה האחרונה, השאר את האינדקס עליה
-            team.currentPointIndex = lastCompletedPointIndex;
-          }
-        } else {
-          // אם אין נקודות שהושלמו, השאר באינדקס 0
-          team.currentPointIndex = 0;
+        // Only override server index if it's clearly wrong
+        if (lastCompletedPointIndex !== -1 && team.currentPointIndex < lastCompletedPointIndex) {
+          team.currentPointIndex = lastCompletedPointIndex + 1;
+          console.log('Correcting point index to:', team.currentPointIndex);
         }
       }
     }
@@ -917,51 +895,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
   const isLastPoint = team?.currentPointIndex === points.length - 1;
 
-  const debugPanel = (
-    <div className="bg-white p-4 rounded-lg shadow mb-4">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-lg font-semibold">Debug Panel</h3>
-        <button
-          onClick={() => setShowManualGPS(!showManualGPS)}
-          className="text-blue-500 hover:text-blue-700"
-        >
-          {showManualGPS ? 'הסתר GPS ידני' : 'הצג GPS ידני'}
-        </button>
-      </div>
-      
-      {showManualGPS && (
-        <form onSubmit={handleManualGPS} className="space-y-2">
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={manualLat}
-              onChange={(e) => setManualLat(e.target.value)}
-              placeholder="Latitude"
-              className="border p-1 rounded"
-            />
-            <input
-              type="text"
-              value={manualLng}
-              onChange={(e) => setManualLng(e.target.value)}
-              placeholder="Longitude"
-              className="border p-1 rounded"
-            />
-            <button type="submit" className="bg-blue-500 text-white px-3 py-1 rounded">
-              עדכן מיקום
-            </button>
-          </div>
-        </form>
-      )}
-      
-      <div className="mt-2 text-sm space-y-1">
-        <p>מיקום נוכחי: {userLocation ? `${userLocation[0]}, ${userLocation[1]}` : 'לא זמין'}</p>
-        <p>אינדקס נקודה: {team?.currentPointIndex}</p>
-        <p>נקודות שהושלמו: {team?.visitedPoints?.length || 0}</p>
-        <p>מספר ניסיונות: {team?.attempts || 0}</p>
-      </div>
-    </div>
-  );
-
   console.log('Rendering game page with state:', {
     currentPointIndex: team?.currentPointIndex,
     visitedPoints: team?.visitedPoints,
@@ -972,7 +905,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {debugPanel}
       <div className="flex flex-col h-screen bg-gray-50">
         <div className="h-3"></div>
         <motion.div 
