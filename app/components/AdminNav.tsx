@@ -5,11 +5,11 @@ import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 
 const navItems = [
-  { name: 'מסלולים', href: '/admin/routes', icon: '🛣️' },
-  { name: 'מפה', href: '/admin/map', icon: '🗺️' },
-  { name: 'קבוצות', href: '/admin/teams', icon: '👥' },
-  { name: 'אירועים', href: '/admin/events', icon: '📅' },
   { name: 'נקודות', href: '/admin/points', icon: '📍' },
+  { name: 'מסלולים', href: '/admin/routes', icon: '🛣️' },
+  { name: 'קבוצות', href: '/admin/teams', icon: '👥' },
+  { name: 'מפה', href: '/admin/map', icon: '🗺️' },
+  { name: 'אירועים', href: '/admin/events', icon: '📅' },
 ];
 
 export default function AdminNav() {
