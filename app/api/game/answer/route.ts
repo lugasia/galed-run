@@ -294,36 +294,45 @@ export async function POST(request: Request) {
       }
     }
 
-    // On correct answer:
-    // Only mark point as visited, don't increment index yet
-    try {
-      const updateResult = await (Team as Model<TeamWithRoute>).findByIdAndUpdate(
-        team._id,
-        { 
-          $set: { attempts: 0 },
-          $push: { visitedPoints: pointId }
-        },
-        { new: true }
-      ).populate({
-        path: 'currentRoute',
-        populate: {
-          path: 'points',
-          model: 'Point'
-        }
-      }).exec();
-      
-      console.log('Update result for correct answer:', updateResult);
+    // If answer is correct, reset attempts counter and update visited points
+    const updateResult = await Team.findByIdAndUpdate(
+      teamId,
+      {
+        $set: { attempts: 0 },
+        $push: { visitedPoints: pointId }
+      },
+      { new: true }
+    ).populate({
+      path: 'currentRoute',
+      populate: {
+        path: 'points'
+      }
+    });
 
-      // Return success message with updated team data
-      return NextResponse.json({ 
-        correct: true,
-        message: 'צדקת! רוץ לנקודה הבאה',
-        team: updateResult
-      });
-    } catch (updateError) {
-      console.error('Error updating team after correct answer:', updateError);
-      return NextResponse.json({ message: 'שגיאה בעיבוד התשובה' }, { status: 500 });
+    if (!updateResult) {
+      console.error('Failed to update team after correct answer');
+      return NextResponse.json({ message: 'שגיאה בעדכון הקבוצה' }, { status: 500 });
     }
+
+    // עדכון האינדקס לנקודה הבאה אחרי הנקודה האחרונה שהושלמה
+    const lastCompletedPointIndex = updateResult.currentRoute.points.findIndex(
+      point => point._id.toString() === updateResult.visitedPoints[updateResult.visitedPoints.length - 1]
+    );
+    
+    if (lastCompletedPointIndex !== -1 && lastCompletedPointIndex + 1 < updateResult.currentRoute.points.length) {
+      updateResult.currentPointIndex = lastCompletedPointIndex + 1;
+    } else if (lastCompletedPointIndex === updateResult.currentRoute.points.length - 1) {
+      // אם הנקודה האחרונה הושלמה, השאר את האינדקס עליה
+      updateResult.currentPointIndex = lastCompletedPointIndex;
+    }
+
+    await updateResult.save();
+
+    return NextResponse.json({
+      message: 'נכון מאד! רוץ לנקודה הבאה',
+      correct: true,
+      team: updateResult
+    });
   } catch (error) {
     console.error('Error processing answer:', error);
     return NextResponse.json(

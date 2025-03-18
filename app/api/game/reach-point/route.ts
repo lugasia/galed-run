@@ -104,10 +104,42 @@ export async function POST(request: Request) {
     
     console.log('Update result for reaching point:', updateResult);
 
-    return NextResponse.json({ 
-      success: true,
-      message: pointAlreadyVisited ? 'עוברים לנקודה הבאה' : 'הנקודה עודכנה בהצלחה',
-      team: updateResult
+    // Update team's visited points and current point index
+    const updatedTeam = await Team.findByIdAndUpdate(
+      teamId,
+      {
+        $push: { visitedPoints: pointId }
+      },
+      { new: true }
+    ).populate({
+      path: 'currentRoute',
+      populate: {
+        path: 'points'
+      }
+    });
+
+    if (!updatedTeam) {
+      console.error('Failed to update team after reaching point');
+      return NextResponse.json({ message: 'שגיאה בעדכון הקבוצה' }, { status: 500 });
+    }
+
+    // עדכון האינדקס לנקודה הבאה אחרי הנקודה האחרונה שהושלמה
+    const lastCompletedPointIndex = updatedTeam.currentRoute.points.findIndex(
+      point => point._id.toString() === updatedTeam.visitedPoints[updatedTeam.visitedPoints.length - 1]
+    );
+    
+    if (lastCompletedPointIndex !== -1 && lastCompletedPointIndex + 1 < updatedTeam.currentRoute.points.length) {
+      updatedTeam.currentPointIndex = lastCompletedPointIndex + 1;
+    } else if (lastCompletedPointIndex === updatedTeam.currentRoute.points.length - 1) {
+      // אם הנקודה האחרונה הושלמה, השאר את האינדקס עליה
+      updatedTeam.currentPointIndex = lastCompletedPointIndex;
+    }
+
+    await updatedTeam.save();
+
+    return NextResponse.json({
+      message: 'הגעת לנקודה בהצלחה!',
+      team: updatedTeam
     });
   } catch (error) {
     console.error('Error updating point:', error);

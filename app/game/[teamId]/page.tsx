@@ -435,13 +435,19 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           (point: Point) => team.visitedPoints.includes(point._id)
         );
         setCompletedPoints(completed);
+
+        // עדכון האינדקס לנקודה הבאה אחרי הנקודה האחרונה שהושלמה
+        const lastCompletedPointIndex = team.currentRoute.points.findIndex(
+          point => point._id === team.visitedPoints[team.visitedPoints.length - 1]
+        );
+        
+        if (lastCompletedPointIndex !== -1 && lastCompletedPointIndex + 1 < team.currentRoute.points.length) {
+          team.currentPointIndex = lastCompletedPointIndex + 1;
+        } else if (lastCompletedPointIndex === team.currentRoute.points.length - 1) {
+          // אם הנקודה האחרונה הושלמה, השאר את האינדקס עליה
+          team.currentPointIndex = lastCompletedPointIndex;
+        }
       }
-    }
-    
-    // Fix currentPointIndex if it's out of bounds
-    if (team.currentPointIndex >= (team.currentRoute?.points?.length || 0)) {
-      console.log('currentPointIndex out of bounds, setting to last point');
-      team.currentPointIndex = (team.currentRoute?.points?.length || 1) - 1;
     }
 
     // Get current point
@@ -474,6 +480,9 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         setPenaltyEndTime(penaltyEnd);
       }
     }
+
+    // עדכן את אובייקט הקבוצה עם האינדקס החדש
+    setTeam(team);
   };
 
   const handleAnswerSubmit = async () => {
