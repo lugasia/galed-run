@@ -61,6 +61,22 @@ interface Team {
   };
 }
 
+// פונקציית עזר לזיהוי נקודת הסיום בצורה עקבית
+const isFinishPoint = (point: Point | null): boolean => {
+  if (!point) return false;
+  
+  // בדיקה לפי מספר קריטריונים אפשריים:
+  // 1. השדה isFinishPoint הוא true
+  // 2. הקוד הוא '1011' (קוד הפאב)
+  // 3. הנקודה מסומנת כנקודת סיום בצורה אחרת (להרחבה עתידית)
+  return (
+    !!point.isFinishPoint || 
+    point.code === '1011' ||
+    point.name?.includes('פאב') ||
+    point.name?.includes('Pub')
+  );
+};
+
 const formatTime = (ms: number) => {
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
@@ -385,7 +401,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
     // Get current point
     const currentPoint = team.currentRoute?.points[team.currentPointIndex];
-    const isFinalPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
     const hasAnsweredCorrectly = team.visitedPoints?.includes(currentPoint?._id);
     
     // Only show question automatically in these cases:
@@ -395,7 +410,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     // 4. Not the final point that's been answered correctly
     if (team.currentPointIndex === 0 && !team.penaltyEndTime && !showQuestion) {
       setShowQuestion(true);
-    } else if (!team.penaltyEndTime && !showQuestion && !(isFinalPoint && hasAnsweredCorrectly)) {
+    } else if (!team.penaltyEndTime && !showQuestion && !(isFinishPoint(currentPoint) && hasAnsweredCorrectly)) {
       setShowQuestion(false);
     }
     
@@ -483,11 +498,10 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   };
 
   const handleRevealQuestion = async () => {
-    const isFinalPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
     const hasAnsweredCorrectly = team?.visitedPoints?.includes(currentPoint?._id);
 
     console.log('handleRevealQuestion debug:', {
-        isFinalPoint,
+        isFinalPoint: isFinishPoint(currentPoint),
         hasAnsweredCorrectly,
         currentPoint,
         team: {
@@ -501,7 +515,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     });
 
     // אם זה הפאב וענו נכון על השאלה, לחיצה על הכפתור תסיים את המשחק
-    if (isFinalPoint && hasAnsweredCorrectly && !gameCompleted) {
+    if (isFinishPoint(currentPoint) && hasAnsweredCorrectly && !gameCompleted) {
         const capturedTime = elapsedTime;
         console.log('Attempting to complete game with time:', capturedTime);
         
@@ -562,10 +576,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
   const currentPoint = team && points.length > 0 ? points[team.currentPointIndex] : null;
   
-  const isFinishPoint = currentPoint?.code === '1011' || currentPoint?.isFinishPoint;
-  
   // Debugging: Log button text logic
-  console.log('Button text:', isFinishPoint && completedPoints.some(p => p._id === currentPoint?._id) 
+  console.log('Button text:', isFinishPoint(currentPoint) && completedPoints.some(p => p._id === currentPoint?._id) 
     ? 'הגעתי! עצור את השעון!' 
     : 'הגעתי! חשוף שאלה');
 
@@ -838,28 +850,36 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                   animate={{ opacity: 1, scale: 1 }}
                   className="bg-white rounded-lg shadow-lg p-4 text-center"
                 >
-                  <h2 className="text-xl font-bold mb-2">
-                    {isFinishPoint && team?.visitedPoints?.includes(currentPoint?._id)
-                        ? 'הגעתם לנקודת הסיום?' 
-                        : 'הגעתם לנקודה?'}
-                  </h2>
-                  <p className="text-gray-600 mb-3">
-                    {isFinishPoint && team?.visitedPoints?.includes(currentPoint?._id)
-                        ? 'לחץ על הכפתור לסיום המשחק' 
-                        : 'לחץ על הכפתור כדי לחשוף את השאלה'}
-                  </p>
-                  <button
-                    onClick={handleRevealQuestion}
-                    className={`w-full font-medium transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
-                      isFinishPoint && team?.visitedPoints?.includes(currentPoint?._id)
-                        ? 'bg-red-600 hover:bg-red-700 text-white py-8 px-4 rounded-full shadow-lg text-xl animate-pulse' 
-                        : 'bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-4 rounded-lg'
-                    }`}
-                  >
-                    {isFinishPoint && team?.visitedPoints?.includes(currentPoint?._id)
-                        ? 'הגעתי! עצור את השעון! ⏱️' 
-                        : 'הגעתי! חשוף שאלה'}
-                  </button>
+                  {/* כפתור הגעה לנקודה */}
+                  <div className="grid place-items-center mt-2">
+                    <button
+                      onClick={handleRevealQuestion}
+                      disabled={penaltyTimeLeft > 0}
+                      className={`
+                        ${isFinishPoint(currentPoint) && team?.visitedPoints?.includes(currentPoint?._id)
+                          ? 'bg-red-500 hover:bg-red-600 text-white' // כפתור אדום רק בנקודה אחרונה שהושלמה
+                          : 'bg-green-500 hover:bg-green-600 text-white'
+                        }
+                        rounded-full p-4 shadow-lg flex flex-col items-center justify-center transform active:scale-95 transition-all
+                        disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed
+                      `}
+                    >
+                      {isFinishPoint(currentPoint) && team?.visitedPoints?.includes(currentPoint?._id) ? (
+                        <>
+                          <span className="font-bold block">הגעתי! עצור את השעון!</span>
+                          <small className="text-white/80">כל הנקודות הושלמו - סיים</small>
+                        </>
+                      ) : (
+                        <span className="font-bold">הגעתי! חשוף שאלה</span>
+                      )}
+                    </button>
+                    
+                    {isFinishPoint(currentPoint) && team?.visitedPoints?.includes(currentPoint?._id) && (
+                      <small className="mt-1 text-center text-green-600">
+                        כל הנקודות הושלמו! לחץ על הכפתור לסיום
+                      </small>
+                    )}
+                  </div>
                 </motion.div>
               )}
             </>
