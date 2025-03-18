@@ -170,11 +170,19 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         },
         (error) => {
           console.error('Error getting location:', error);
+          // אם יש שגיאת GPS, הצג הודעה למשתמש
+          if (error.code === 3) { // Timeout
+            setMessage('לא הצלחנו לקבל את המיקום שלך. נסה לרענן את העמוד או להפעיל מחדש את ה-GPS.');
+          } else if (error.code === 1) { // Permission denied
+            setMessage('אנא אפשר גישה למיקום כדי להמשיך במשחק.');
+          } else if (error.code === 2) { // Position unavailable
+            setMessage('לא ניתן לקבל את המיקום שלך כרגע. נסה לצאת לאזור פתוח יותר.');
+          }
         },
         {
           enableHighAccuracy: true,
-          maximumAge: 30000, // Allow cached positions up to 30 seconds old
-          timeout: 27000 // Wait up to 27 seconds for a position
+          maximumAge: 10000, // Allow cached positions up to 10 seconds old
+          timeout: 10000 // Wait up to 10 seconds for a position
         }
       );
 
@@ -182,6 +190,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         clearInterval(interval);
         navigator.geolocation.clearWatch(watchId);
       };
+    } else {
+      setMessage('הדפדפן שלך לא תומך ב-GPS. נסה להשתמש בדפדפן אחר.');
     }
 
     return () => clearInterval(interval);
@@ -441,11 +451,24 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           point => point._id === team.visitedPoints[team.visitedPoints.length - 1]
         );
         
-        if (lastCompletedPointIndex !== -1 && lastCompletedPointIndex + 1 < team.currentRoute.points.length) {
-          team.currentPointIndex = lastCompletedPointIndex + 1;
-        } else if (lastCompletedPointIndex === team.currentRoute.points.length - 1) {
-          // אם הנקודה האחרונה הושלמה, השאר את האינדקס עליה
-          team.currentPointIndex = lastCompletedPointIndex;
+        console.log('Point index calculation:', {
+          lastCompletedPointIndex,
+          visitedPoints: team.visitedPoints,
+          currentPoints: team.currentRoute.points.map(p => ({ id: p._id, name: p.name }))
+        });
+
+        if (lastCompletedPointIndex !== -1) {
+          // אם יש נקודה שהושלמה
+          if (lastCompletedPointIndex + 1 < team.currentRoute.points.length) {
+            // אם יש נקודה הבאה, עבור אליה
+            team.currentPointIndex = lastCompletedPointIndex + 1;
+          } else {
+            // אם זו הנקודה האחרונה, השאר את האינדקס עליה
+            team.currentPointIndex = lastCompletedPointIndex;
+          }
+        } else {
+          // אם אין נקודות שהושלמו, השאר באינדקס 0
+          team.currentPointIndex = 0;
         }
       }
     }
