@@ -431,28 +431,10 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           (point: Point) => team.visitedPoints.includes(point._id)
         );
         setCompletedPoints(completed);
-
-        // Find the last completed point index
-        const lastCompletedPointIndex = team.currentRoute.points.findIndex(
-          point => point._id === team.visitedPoints[team.visitedPoints.length - 1]
-        );
-        
-        console.log('Point index validation:', {
-          serverIndex: team.currentPointIndex,
-          lastCompletedPointIndex,
-          visitedPoints: team.visitedPoints,
-          currentPoints: team.currentRoute.points.map(p => ({ id: p._id, name: p.name }))
-        });
-
-        // רק אם אנחנו בנקודה הנוכחית והיא הושלמה, נתקדם לנקודה הבאה
-        if (lastCompletedPointIndex !== -1 && lastCompletedPointIndex === team.currentPointIndex) {
-          const nextPointIndex = lastCompletedPointIndex + 1;
-          if (nextPointIndex < team.currentRoute.points.length) {
-            console.log('Moving to next point:', nextPointIndex);
-            team.currentPointIndex = nextPointIndex;
-          }
-        }
       }
+
+      // Use server's currentPointIndex directly
+      team.currentPointIndex = team.currentPointIndex;
     }
 
     // Get current point
@@ -486,7 +468,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }
     }
 
-    // עדכן את אובייקט הקבוצה עם האינדקס החדש
+    // עדכן את אובייקט הקבוצה
     setTeam(team);
   };
 
