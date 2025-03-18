@@ -293,16 +293,12 @@ export async function POST(request: Request) {
     }
 
     // On correct answer:
-    // 1. Reset attempts counter
-    // 2. Add point to visited points
-    // 3. Increment current point index
+    // Reset attempts counter only
     try {
       const updateResult = await (Team as Model<TeamWithRoute>).updateOne(
         { _id: team._id },
         { 
-          $set: { attempts: 0 },
-          $push: { visitedPoints: pointId },
-          $inc: { currentPointIndex: 1 }
+          $set: { attempts: 0 }
         }
       ).exec();
       
@@ -312,114 +308,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'שגיאה בעיבוד התשובה' }, { status: 500 });
     }
 
-    // Check if this was the last point
-    const isLastPoint = team.currentPointIndex === team.currentRoute.points.length - 1;
-    if (isLastPoint) {
-      const startTime = typeof team.startTime === 'string' ? new Date(team.startTime) : team.startTime;
-      if (!(startTime instanceof Date) || isNaN(startTime.getTime())) {
-        console.error('Invalid start time for team:', team._id);
-        return NextResponse.json({ message: 'שגיאה בעיבוד הזמן' }, { status: 500 });
-      }
-      const completionTime = Date.now() - startTime.getTime();
-      completionTimes[team._id] = completionTime;
-
-      // Determine rankings
-      const sortedTeams = Object.entries(completionTimes as Record<string, number>).sort((a, b) => (a[1] as number) - (b[1] as number));
-      const rank = sortedTeams.findIndex(([id]) => id === team._id.toString()) + 1;
-
-      let message = 'כל הכבוד! סיימתם את המסלול';
-      if (rank === 1) message += ' - מקום ראשון';
-      else if (rank === 2) message += ' - מקום שני';
-      else if (rank === 3) message += ' - מקום שלישי';
-
-      return NextResponse.json({ 
-        correct: true,
-        message,
-        isLastPoint: true
-      });
-    } else {
-      // Get next point info
-      try {
-        // Fetch the team again to get the updated currentPointIndex
-        const updatedTeam = await (Team as Model<TeamWithRoute>).findById(team._id)
-          .populate({
-            path: 'currentRoute',
-            populate: {
-              path: 'points',
-              model: 'Point'
-            }
-          });
-        
-        if (!updatedTeam) {
-          console.error('Could not find team after updating currentPointIndex');
-          return NextResponse.json({ 
-            correct: true,
-            message: 'צדקת! רוץ לנקודה הבאה'
-          });
-        }
-        
-        // Use the updated team's currentPointIndex
-        const nextPointIndex = updatedTeam.currentPointIndex;
-        console.log('Next point index:', nextPointIndex);
-        console.log('Route points length:', updatedTeam.currentRoute?.points?.length || 0);
-        console.log('Team data:', {
-          id: updatedTeam._id,
-          name: updatedTeam.name,
-          currentPointIndex: updatedTeam.currentPointIndex,
-          routeId: updatedTeam.currentRoute?._id,
-          routeName: updatedTeam.currentRoute?.name
-        });
-        
-        // Make sure the next point exists
-        if (!updatedTeam.currentRoute || !updatedTeam.currentRoute.points) {
-          console.error('Team has no route or points array is missing');
-          return NextResponse.json({ 
-            correct: true,
-            message: 'צדקת! רוץ לנקודה הבאה'
-          });
-        }
-        
-        if (nextPointIndex >= updatedTeam.currentRoute.points.length) {
-          console.error('Next point index out of bounds:', nextPointIndex, 'points length:', updatedTeam.currentRoute.points.length);
-          return NextResponse.json({ 
-            correct: true,
-            message: 'צדקת! רוץ לנקודה הבאה'
-          });
-        }
-        
-        const nextPoint = updatedTeam.currentRoute.points[nextPointIndex];
-        console.log('Next point:', nextPoint ? {
-          id: nextPoint._id,
-          name: nextPoint.name,
-          code: nextPoint.code
-        } : 'undefined');
-        
-        if (!nextPoint) {
-          console.error('Next point is undefined');
-          return NextResponse.json({ 
-            correct: true,
-            message: 'צדקת! רוץ לנקודה הבאה'
-          });
-        }
-        
-        return NextResponse.json({ 
-          correct: true,
-          message: `צדקת! רוץ לנקודה "${nextPoint.name}"`,
-          nextPoint: {
-            name: nextPoint.name,
-            code: nextPoint.code,
-            isFinishPoint: nextPoint.isFinishPoint || nextPoint.code === '1011'
-          }
-        });
-      } catch (nextPointError) {
-        console.error('Error getting next point:', nextPointError);
-        // Return a simpler response if we can't get the next point
-        return NextResponse.json({ 
-          correct: true,
-          message: 'צדקת! רוץ לנקודה הבאה'
-        });
-      }
-    }
+    // Return success message without changing point or index
+    return NextResponse.json({ 
+      correct: true,
+      message: 'צדקת! רוץ לנקודה כדי להמשיך',
+    });
   } catch (error) {
     console.error('Error processing answer:', error);
     return NextResponse.json(

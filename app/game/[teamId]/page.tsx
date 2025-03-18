@@ -548,6 +548,33 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             setMessage(`אתה נמצא במרחק ${Math.round(distance * 1000)} מטר מהנקודה. עליך להתקרב למרחק של עד 50 מטר כדי לענות על השאלה.`);
             return;
         }
+
+        // עדכון הנקודה והאינדקס רק אם המשתמש קרוב מספיק והנקודה לא מסומנת כבר כמבוקרת
+        if (!team?.visitedPoints?.includes(currentPoint._id)) {
+          try {
+            const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
+            const response = await fetch('/api/game/reach-point', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                teamId,
+                pointId: currentPoint._id,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to update point');
+            }
+
+            await fetchTeam(); // רענון נתוני הקבוצה
+          } catch (error) {
+            console.error('Error updating point:', error);
+            setMessage('שגיאה בעדכון הנקודה');
+            return;
+          }
+        }
     }
 
     // אם זה הפאב וענו נכון על השאלה, לחיצה על הכפתור תסיים את המשחק
