@@ -645,7 +645,14 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
               throw new Error('Failed to update point');
             }
 
-            await fetchTeam(); // רענון נתוני הקבוצה
+            const data = await response.json();
+            
+            // אם העדכון הצליח, נציג את השאלה מיד
+            if (data.success) {
+              setShowQuestion(true);
+              setMessage(null);
+              return;
+            }
           } catch (error) {
             console.error('Error updating point:', error);
             setMessage('שגיאה בעדכון הנקודה');
@@ -692,9 +699,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             setFinalTime(capturedTime);
             setGameCompleted(true);
             setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
-            
-            // רענון נתוני הקבוצה
-            await fetchTeam();
         } catch (error) {
             console.error('Error saving completion time:', error);
             // במקרה של שגיאה, נחזיר את הטיימר למצב פעיל
@@ -708,9 +712,11 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             setMessage('שגיאה בשמירת זמן הסיום. אנא נסו שוב.');
         }
     } else if (!gameCompleted) {
-        // בכל נקודה אחרת, הצג את השאלה
-        setShowQuestion(true);
-        setMessage(null);
+        // בכל נקודה אחרת, הצג את השאלה רק אם עוד לא הוצגה
+        if (!showQuestion) {
+          setShowQuestion(true);
+          setMessage(null);
+        }
     }
   };
 
