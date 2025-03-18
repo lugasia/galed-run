@@ -118,7 +118,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   const [team, setTeam] = useState<Team | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
-  const [finalTime, setFinalTime] = useState<number | null>(null); // Store final time separately
+  const [finalTime, setFinalTime] = useState<number | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [showQuestion, setShowQuestion] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState('');
@@ -126,12 +126,12 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   const [loading, setLoading] = useState(true);
   const [penaltyEndTime, setPenaltyEndTime] = useState<Date | null>(null);
   const [penaltyTimeLeft, setPenaltyTimeLeft] = useState<number>(0);
-  const [currentHintLevel, setCurrentHintLevel] = useState(0); // 0 = אין רמז, 1 = זום אאוט, 2 = שם התחנה
+  const [currentHintLevel, setCurrentHintLevel] = useState(0);
   const [showPointImage, setShowPointImage] = useState(false);
   const [completedPoints, setCompletedPoints] = useState<Point[]>([]);
   const [disabledOptions, setDisabledOptions] = useState<string[]>([]);
   const [gameCompleted, setGameCompleted] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null); // Reference to store the timer interval
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [showManualGPS, setShowManualGPS] = useState(false);
   const [manualLat, setManualLat] = useState('');
   const [manualLng, setManualLng] = useState('');
@@ -294,17 +294,20 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     console.log('Current game state:', {
       currentPointIndex: team?.currentPointIndex,
       visitedPoints: team?.visitedPoints,
-      currentPoint: currentPoint,
+      currentPoint: team?.currentRoute?.points[team?.currentPointIndex || 0],
       completedPoints
     });
-  }, [team, currentPoint, completedPoints]);
+  }, [team, team?.currentRoute?.points, team?.currentPointIndex, team?.visitedPoints, completedPoints]);
 
   const handleManualGPS = (e: React.FormEvent) => {
     e.preventDefault();
     const lat = parseFloat(manualLat);
     const lng = parseFloat(manualLng);
     if (!isNaN(lat) && !isNaN(lng)) {
-      setUserLocation({ lat, lng });
+      setUserLocation([lat, lng]);
+      setShowManualGPS(false);
+      setManualLat('');
+      setManualLng('');
     }
   };
 
@@ -690,20 +693,23 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
   // Add global debug functions
   useEffect(() => {
+    // Function to set GPS location manually
     window.setGPS = (lat: number, lng: number) => {
       console.log(`Setting GPS coordinates to: ${lat}, ${lng}`);
-      setUserLocation([lat, lng] as [number, number]);
+      setUserLocation([lat, lng]);
     };
 
+    // Function to print current game state
     window.debugState = () => {
+      const currentPoint = team?.currentRoute?.points[team?.currentPointIndex || 0];
       console.log('Current Game State:', {
         team: {
           name: team?.name,
           currentPointIndex: team?.currentPointIndex,
           visitedPoints: team?.visitedPoints,
-          attempts: team?.attempts
+          attempts: team?.attempts,
+          currentPoint
         },
-        currentPoint,
         userLocation,
         showQuestion,
         message,
@@ -711,18 +717,21 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       });
     };
 
+    // Cleanup
     return () => {
       delete window.setGPS;
       delete window.debugState;
     };
-  }, [team, currentPoint, userLocation, showQuestion, message]);
+  }, [team, userLocation, showQuestion, message]);
 
   // Add debug logging for counter changes
   useEffect(() => {
+    const currentPoint = team?.currentRoute?.points[team?.currentPointIndex || 0];
     console.log('Counter Debug:', {
       currentPointIndex: team?.currentPointIndex,
-      visitedPoints: team?.visitedPoints,
+      visitedPoints: team?.visitedPoints?.length,
       attempts: team?.attempts,
+      currentPoint: currentPoint?.name,
       timestamp: new Date().toISOString()
     });
   }, [team?.currentPointIndex, team?.visitedPoints, team?.attempts]);
@@ -888,7 +897,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       )}
       
       <div className="mt-2 text-sm space-y-1">
-        <p>מיקום נוכחי: {userLocation ? `${userLocation.lat}, ${userLocation.lng}` : 'לא זמין'}</p>
+        <p>מיקום נוכחי: {userLocation ? `${userLocation[0]}, ${userLocation[1]}` : 'לא זמין'}</p>
         <p>אינדקס נקודה: {team?.currentPointIndex}</p>
         <p>נקודות שהושלמו: {team?.visitedPoints?.length || 0}</p>
         <p>מספר ניסיונות: {team?.attempts || 0}</p>
@@ -908,243 +917,243 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     <div className="container mx-auto px-4 py-8">
       {debugPanel}
       <div className="flex flex-col h-screen bg-gray-50">
-    <div className="flex flex-col h-screen bg-gray-50">
-      <div className="h-3"></div>
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg p-2 sticky top-0 z-10"
-      >
-        <div className="text-center space-y-1">
-          <h1 className="text-lg font-bold">{team.name}</h1>
-          <div className="text-3xl font-mono tracking-wider">
-            {formatTime(elapsedTime)}
-          </div>
-          <div className="flex items-center justify-center gap-2 text-xs">
-            <span className="bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
-              נקודה {team?.currentPointIndex + 1} מתוך {points.length}
-            </span>
-            {penaltyTimeLeft > 0 && (
-              <span className="bg-red-500/80 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                עונש: {formatPenaltyTime(penaltyTimeLeft)}
-              </span>
-            )}
-          </div>
-        </div>
-      </motion.div>
-
-      <div className="flex-1 overflow-auto">
-        <div className="p-3 space-y-3 max-w-lg mx-auto">
-          {penaltyTimeLeft > 0 ? (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-gradient-to-r from-red-500 to-red-600 text-white rounded-2xl shadow-lg p-6 text-center"
-            >
-              <h2 className="text-2xl font-bold mb-3">נפסלתם!</h2>
-              <p className="text-lg opacity-90">
-                המתינו {formatPenaltyTime(penaltyTimeLeft)} לקבלת הרמז הבא
-              </p>
-            </motion.div>
-          ) : (
-            <>
-              {/* תמונת הנקודה */}
-              {getCurrentPointImage() && showQuestion && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="bg-white rounded-2xl shadow-lg overflow-hidden"
-                >
-                  <img 
-                    src={getCurrentPointImage()} 
-                    alt="תמונת הנקודה" 
-                    className="w-full h-56 object-cover"
-                    onClick={() => setShowPointImage(true)}
-                  />
-                  {currentHintLevel >= 2 && (
-                    <div className="p-3 text-center font-bold text-lg">
-                      {currentPoint?.name}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-              
-              {/* שאלה */}
-              {showQuestion ? (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="bg-white rounded-lg shadow-lg p-3"
-                >
-                  {currentPoint.question.image && (
-                    <div className="mb-3 relative w-full">
-                      <img 
-                        src={currentPoint.question.image} 
-                        alt="תמונת השאלה" 
-                        className="w-2/5 mr-0 ml-auto max-h-[40vh] object-contain rounded-lg"
-                        onClick={() => setShowPointImage(true)}
-                      />
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="bg-blue-100 p-1.5 rounded-full">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <h2 className="text-base font-bold flex-1 leading-tight">{currentPoint.question.text}</h2>
-                  </div>
-                  <div className="space-y-1.5 mt-2">
-                    {currentPoint.question.options.map((option, index) => (
-                      <label 
-                        key={index} 
-                        className={`flex items-center px-2 py-1.5 rounded transition-all text-sm
-                          ${disabledOptions.includes(option) 
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50' 
-                            : selectedAnswer === option 
-                              ? 'bg-blue-50 border border-blue-500' 
-                              : 'bg-gray-50 hover:bg-gray-100 border border-transparent cursor-pointer'}`}
-                      >
-                        <input
-                          type="radio"
-                          name="answer"
-                          value={option}
-                          checked={selectedAnswer === option}
-                          onChange={(e) => setSelectedAnswer(e.target.value)}
-                          disabled={disabledOptions.includes(option)}
-                          className="w-3 h-3 text-blue-600 mr-2"
-                        />
-                        <span>{option}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <button
-                    onClick={handleAnswerSubmit}
-                    disabled={!selectedAnswer}
-                    className="mt-2 w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-1.5 px-3 rounded text-sm font-medium
-                      disabled:from-gray-400 disabled:to-gray-500 disabled:opacity-60 
-                      transition-all transform hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    שלח
-                  </button>
-                </motion.div>
-              ) : (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="bg-white rounded-lg shadow-lg p-4 text-center"
-                >
-                  {/* כפתור הגעה לנקודה */}
-                  <div className="grid place-items-center mt-2">
-                    <button
-                      onClick={handleRevealQuestion}
-                      disabled={penaltyTimeLeft > 0}
-                      className={`
-                        ${isFinishPoint(currentPoint) && team?.visitedPoints?.includes(currentPoint?._id)
-                          ? 'bg-red-500 hover:bg-red-600 text-white' // כפתור אדום רק בנקודה אחרונה שהושלמה
-                          : 'bg-green-500 hover:bg-green-600 text-white'
-                        }
-                        rounded-full p-4 shadow-lg flex flex-col items-center justify-center transform active:scale-95 transition-all
-                        disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed
-                      `}
-                    >
-                      {isFinishPoint(currentPoint) && team?.visitedPoints?.includes(currentPoint?._id) ? (
-                        <>
-                          <span className="font-bold block">הגעתי! עצור את השעון!</span>
-                          <small className="text-white/80">כל הנקודות הושלמו - סיים</small>
-                        </>
-                      ) : (
-                        <span className="font-bold">הגעתי! חשוף שאלה</span>
-                      )}
-                    </button>
-                    
-                    {isFinishPoint(currentPoint) && team?.visitedPoints?.includes(currentPoint?._id) && (
-                      <small className="mt-1 text-center text-green-600">
-                        כל הנקודות הושלמו! לחץ על הכפתור לסיום
-                      </small>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </>
-          )}
-
-          {message && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={() => message.includes('נכון מאד') ? null : setMessage(null)}
-              className={`border-r-4 p-3 rounded-lg text-sm cursor-pointer ${
-                message.includes('צדקת') || message.includes('נכון מאד')
-                  ? 'bg-green-50 border-green-500 text-green-800' 
-                  : message.includes('טעית') 
-                    ? 'bg-red-50 border-red-500 text-red-800'
-                    : 'bg-blue-50 border-blue-500 text-blue-800'
-              }`}
-            >
-              {message}
-              {(message.includes('צדקת') || message.includes('נכון מאד')) && (
-                <div className="mt-2 text-xs text-gray-500">
-                  לחץ על "הגעתי" להמשך
-                </div>
-              )}
-            </motion.div>
-          )}
-        </div>
-      </div>
-
-      {/* רשימת נקודות שהושלמו בתחתית העמוד */}
-      {completedPoints.length > 0 && (
+        <div className="h-3"></div>
         <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white border-t border-gray-200 p-4"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg p-2 sticky top-0 z-10"
         >
-          <div className="max-w-lg mx-auto">
-            <h3 className="font-bold text-sm mb-2 text-gray-700">תחנות שעברתם:</h3>
-            <div className="flex flex-wrap gap-2">
-              {completedPoints.map((point, index) => (
-                <div key={point._id} className="flex items-center bg-green-50 rounded-full px-3 py-1 text-sm">
-                  <div className="w-4 h-4 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <span className="text-green-800">{point.name}</span>
-                </div>
-              ))}
+          <div className="text-center space-y-1">
+            <h1 className="text-lg font-bold">{team.name}</h1>
+            <div className="text-3xl font-mono tracking-wider">
+              {formatTime(elapsedTime)}
+            </div>
+            <div className="flex items-center justify-center gap-2 text-xs">
+              <span className="bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                נקודה {team?.currentPointIndex + 1} מתוך {points.length}
+              </span>
+              {penaltyTimeLeft > 0 && (
+                <span className="bg-red-500/80 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                  עונש: {formatPenaltyTime(penaltyTimeLeft)}
+                </span>
+              )}
             </div>
           </div>
         </motion.div>
-      )}
 
-      {/* תצוגת תמונה מוגדלת */}
-      {showPointImage && getCurrentPointImage() && (
-        <div 
-          className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"
-          onClick={() => setShowPointImage(false)}
-        >
-          <img 
-            src={getCurrentPointImage()} 
-            alt="תמונת הנקודה" 
-            className="max-w-full max-h-full object-contain"
-          />
-        </div>
-      )}
+        <div className="flex-1 overflow-auto">
+          <div className="p-3 space-y-3 max-w-lg mx-auto">
+            {penaltyTimeLeft > 0 ? (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-gradient-to-r from-red-500 to-red-600 text-white rounded-2xl shadow-lg p-6 text-center"
+              >
+                <h2 className="text-2xl font-bold mb-3">נפסלתם!</h2>
+                <p className="text-lg opacity-90">
+                  המתינו {formatPenaltyTime(penaltyTimeLeft)} לקבלת הרמז הבא
+                </p>
+              </motion.div>
+            ) : (
+              <>
+                {/* תמונת הנקודה */}
+                {getCurrentPointImage() && showQuestion && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white rounded-2xl shadow-lg overflow-hidden"
+                  >
+                    <img 
+                      src={getCurrentPointImage()} 
+                      alt="תמונת הנקודה" 
+                      className="w-full h-56 object-cover"
+                      onClick={() => setShowPointImage(true)}
+                    />
+                    {currentHintLevel >= 2 && (
+                      <div className="p-3 text-center font-bold text-lg">
+                        {currentPoint?.name}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+                
+                {/* שאלה */}
+                {showQuestion ? (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white rounded-lg shadow-lg p-3"
+                  >
+                    {currentPoint.question.image && (
+                      <div className="mb-3 relative w-full">
+                        <img 
+                          src={currentPoint.question.image} 
+                          alt="תמונת השאלה" 
+                          className="w-2/5 mr-0 ml-auto max-h-[40vh] object-contain rounded-lg"
+                          onClick={() => setShowPointImage(true)}
+                        />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="bg-blue-100 p-1.5 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <h2 className="text-base font-bold flex-1 leading-tight">{currentPoint.question.text}</h2>
+                    </div>
+                    <div className="space-y-1.5 mt-2">
+                      {currentPoint.question.options.map((option, index) => (
+                        <label 
+                          key={index} 
+                          className={`flex items-center px-2 py-1.5 rounded transition-all text-sm
+                            ${disabledOptions.includes(option) 
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50' 
+                              : selectedAnswer === option 
+                                ? 'bg-blue-50 border border-blue-500' 
+                                : 'bg-gray-50 hover:bg-gray-100 border border-transparent cursor-pointer'}`}
+                        >
+                          <input
+                            type="radio"
+                            name="answer"
+                            value={option}
+                            checked={selectedAnswer === option}
+                            onChange={(e) => setSelectedAnswer(e.target.value)}
+                            disabled={disabledOptions.includes(option)}
+                            className="w-3 h-3 text-blue-600 mr-2"
+                          />
+                          <span>{option}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <button
+                      onClick={handleAnswerSubmit}
+                      disabled={!selectedAnswer}
+                      className="mt-2 w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-1.5 px-3 rounded text-sm font-medium
+                        disabled:from-gray-400 disabled:to-gray-500 disabled:opacity-60 
+                        transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      שלח
+                    </button>
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white rounded-lg shadow-lg p-4 text-center"
+                  >
+                    {/* כפתור הגעה לנקודה */}
+                    <div className="grid place-items-center mt-2">
+                      <button
+                        onClick={handleRevealQuestion}
+                        disabled={penaltyTimeLeft > 0}
+                        className={`
+                          ${isFinishPoint(currentPoint) && team?.visitedPoints?.includes(currentPoint?._id)
+                            ? 'bg-red-500 hover:bg-red-600 text-white' // כפתור אדום רק בנקודה אחרונה שהושלמה
+                            : 'bg-green-500 hover:bg-green-600 text-white'
+                          }
+                          rounded-full p-4 shadow-lg flex flex-col items-center justify-center transform active:scale-95 transition-all
+                          disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed
+                        `}
+                      >
+                        {isFinishPoint(currentPoint) && team?.visitedPoints?.includes(currentPoint?._id) ? (
+                          <>
+                            <span className="font-bold block">הגעתי! עצור את השעון!</span>
+                            <small className="text-white/80">כל הנקודות הושלמו - סיים</small>
+                          </>
+                        ) : (
+                          <span className="font-bold">הגעתי! חשוף שאלה</span>
+                        )}
+                      </button>
+                      
+                      {isFinishPoint(currentPoint) && team?.visitedPoints?.includes(currentPoint?._id) && (
+                        <small className="mt-1 text-center text-green-600">
+                          כל הנקודות הושלמו! לחץ על הכפתור לסיום
+                        </small>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </>
+            )}
 
-      {/* המשך מעקב מיקום ברקע */}
-      {userLocation && (
-        <div className="hidden">
-          <Map 
-            userLocation={userLocation} 
-            currentPoint={currentPoint ? currentPoint.location : undefined}
-            visitedPoints={team.visitedPoints.map(id => {
-              const point = points.find(p => p._id === id);
-              return point ? point.location : undefined;
-            }).filter(Boolean) as [number, number][]}
-          />
+            {message && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={() => message.includes('נכון מאד') ? null : setMessage(null)}
+                className={`border-r-4 p-3 rounded-lg text-sm cursor-pointer ${
+                  message.includes('צדקת') || message.includes('נכון מאד')
+                    ? 'bg-green-50 border-green-500 text-green-800' 
+                    : message.includes('טעית') 
+                      ? 'bg-red-50 border-red-500 text-red-800'
+                      : 'bg-blue-50 border-blue-500 text-blue-800'
+                }`}
+              >
+                {message}
+                {(message.includes('צדקת') || message.includes('נכון מאד')) && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    לחץ על "הגעתי" להמשך
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </div>
         </div>
-      )}
+
+        {/* רשימת נקודות שהושלמו בתחתית העמוד */}
+        {completedPoints.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white border-t border-gray-200 p-4"
+          >
+            <div className="max-w-lg mx-auto">
+              <h3 className="font-bold text-sm mb-2 text-gray-700">תחנות שעברתם:</h3>
+              <div className="flex flex-wrap gap-2">
+                {completedPoints.map((point, index) => (
+                  <div key={point._id} className="flex items-center bg-green-50 rounded-full px-3 py-1 text-sm">
+                    <div className="w-4 h-4 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <span className="text-green-800">{point.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* תצוגת תמונה מוגדלת */}
+        {showPointImage && getCurrentPointImage() && (
+          <div 
+            className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowPointImage(false)}
+          >
+            <img 
+              src={getCurrentPointImage()} 
+              alt="תמונת הנקודה" 
+              className="max-w-full max-h-full object-contain"
+            />
+          </div>
+        )}
+
+        {/* המשך מעקב מיקום ברקע */}
+        {userLocation && (
+          <div className="hidden">
+            <Map 
+              userLocation={userLocation}
+              currentPoint={currentPoint?.location}
+              visitedPoints={points
+                .filter(point => team?.visitedPoints?.includes(point._id))
+                .map(point => point.location)
+              }
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 } 
