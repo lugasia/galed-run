@@ -303,11 +303,8 @@ export async function POST(request: Request) {
         const penaltyTime = penaltyMinutes * 60 * 1000;
         const penaltyEndTime = new Date(Date.now() + penaltyTime);
         
-        // Get the next point name if available
-        const nextPointIndex = updatedTeam.currentPointIndex + 1;
-        const nextPointName = nextPointIndex < updatedTeam.currentRoute.points.length 
-          ? updatedTeam.currentRoute.points[nextPointIndex].name 
-          : 'הבאה';
+        // Get the current point name
+        const currentPointName = point?.name || 'הנוכחית';
         
         // Apply penalty and move to next point
         await Team.findByIdAndUpdate(
@@ -324,7 +321,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json({
           correct: false,
-          message: `טעית, המתן לזמן העונשין ואז רוץ לנקודה ${nextPointName}`,
+          message: `טעית, המתן לזמן העונשין ואז רוץ לנקודה ${currentPointName}`,
           penaltyEndTime: penaltyEndTime.toISOString(),
           attempts: attempts
         });
@@ -387,14 +384,12 @@ export async function POST(request: Request) {
 
     await updateResult.save();
 
-    // Get the next point name if available
-    const nextPointIndex = updateResult.currentPointIndex;
-    const nextPointName = nextPointIndex < updateResult.currentRoute.points.length 
-      ? updateResult.currentRoute.points[nextPointIndex].name 
-      : 'הבאה';
+    // Get the current point name (the one that was just answered correctly)
+    const currentPoint = point;
+    const currentPointName = currentPoint?.name || 'הנוכחית';
 
     return NextResponse.json({
-      message: `נכון מאד! "${answer}" - רוץ לנקודה ${nextPointName}`,
+      message: `נכון מאד! "${answer}" - רוץ לנקודה ${currentPointName}`,
       correct: true,
       team: updateResult
     });

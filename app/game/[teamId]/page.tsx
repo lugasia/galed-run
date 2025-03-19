@@ -531,11 +531,10 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         if (isLastPoint) {
           setMessage('כל הכבוד! רוץ לנקודת הסיום ולחץ על כפתור "עצור שעון"');
         } else {
-          // Get the name of the next point to show in the message
-          const nextPointIndex = team.currentPointIndex + 1;
-          const nextPointName = points[nextPointIndex]?.name || 'הבאה';
+          // Get the name of the CURRENT point (not the next one)
+          const currentPointName = currentPoint?.name || 'הנוכחית';
           // Include the correct answer in the message
-          setMessage(`צדקת! "${selectedAnswer}" - רוץ לנקודה ${nextPointName}`);
+          setMessage(`צדקת! "${selectedAnswer}" - רוץ לנקודה ${currentPointName}`);
         }
         
         // When server API returns a team object with updates,
