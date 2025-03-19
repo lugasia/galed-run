@@ -534,19 +534,32 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           setMessage('צדקת! רוץ לנקודה הבאה');
         }
         
-        // Update team data without fetching from server
-        const updatedTeam = {
-          ...team,
-          visitedPoints: [...(team.visitedPoints || []), currentPoint._id],
-          attempts: 0
-        };
-        setTeam(updatedTeam);
-        
-        // Update completed points
-        const completed = points.filter(
-          (point: Point) => updatedTeam.visitedPoints.includes(point._id)
-        );
-        setCompletedPoints(completed);
+        // When server API returns a team object with updates,
+        // we should use that to update our local state
+        if (data.team) {
+          setTeam(data.team);
+          // Update completed points based on server data
+          if (data.team.visitedPoints && points) {
+            const completed = points.filter(
+              (point: Point) => data.team.visitedPoints.includes(point._id)
+            );
+            setCompletedPoints(completed);
+          }
+        } else {
+          // Fallback to local state update
+          const updatedTeam = {
+            ...team,
+            visitedPoints: [...(team.visitedPoints || []), currentPoint._id],
+            attempts: 0
+          };
+          setTeam(updatedTeam);
+          
+          // Update completed points
+          const completed = points.filter(
+            (point: Point) => updatedTeam.visitedPoints.includes(point._id)
+          );
+          setCompletedPoints(completed);
+        }
       } else {
         // Handle incorrect answer
         setMessage(data.message || 'טעית, נסה שוב');
@@ -569,12 +582,21 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           setMessage('נפסלתם! המתינו לסיום העונשין לקבלת הרמז הבא');
         }
         
-        // Update attempts locally
-        setTeam({
-          ...team,
-          attempts: newAttempts
-        });
+        // Use server data if available
+        if (data.team) {
+          setTeam(data.team);
+        } else {
+          // Fallback to local update
+          setTeam({
+            ...team,
+            attempts: newAttempts
+          });
+        }
       }
+      
+      // After submitting answer, fetch latest team data
+      setTimeout(fetchTeam, 500);
+      
     } catch (error) {
       console.error('Error in handleAnswerSubmit:', error);
       setMessage('שגיאה בשליחת התשובה');
@@ -636,14 +658,23 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       if (hasAnsweredCorrectly) {
         const nextPointIndex = team.currentPointIndex + 1;
         if (nextPointIndex < points.length) {
+          // Update local state
           const updatedTeam = {
             ...team,
             currentPointIndex: nextPointIndex,
             attempts: 0
           };
+          
+          // Update server state
+          const teamId = team.uniqueLink.split('/').pop() || team._id;
+          await updateServerPointIndex(nextPointIndex);
+          
+          // Update client state
           setTeam(updatedTeam);
           setShowQuestion(true);
           setMessage(null);
+          
+          console.log(`Advanced to point ${nextPointIndex}`);
           return;
         }
       }
@@ -657,6 +688,35 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     } catch (error) {
       console.error('Error in handleRevealQuestion:', error);
       setMessage('שגיאה בעדכון הנקודה');
+    }
+  };
+
+  // Function to update the point index on the server
+  const updateServerPointIndex = async (pointIndex: number) => {
+    if (!team) return false;
+    
+    const teamId = team.uniqueLink.split('/').pop() || team._id;
+    try {
+      const response = await fetch(`/api/teams/${teamId}/update-point`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPointIndex: pointIndex
+        }),
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to update point on server:', await response.json());
+        return false;
+      }
+      
+      console.log('Successfully updated point index on server to:', pointIndex);
+      return true;
+    } catch (error) {
+      console.error('Error updating point on server:', error);
+      return false;
     }
   };
 
