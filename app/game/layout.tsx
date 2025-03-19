@@ -9,7 +9,7 @@ export default function GameLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100 relative">
+    <div className="flex flex-col min-h-screen bg-gray-100">
       <div className="bg-gradient-to-br from-blue-50 to-indigo-50 shadow-md py-4">
         <div className="flex items-center justify-center">
           <div className="text-center flex flex-col items-center">
@@ -40,13 +40,15 @@ export default function GameLayout({
         </div>
       </main>
       
-      {/* הודעת זכויות יוצרים - תמיד בתחתית מימין */}
-      <div className="fixed bottom-0 right-0 py-2 px-3 bg-white/70 backdrop-blur-sm rounded-tl-lg shadow-md z-10">
-        <div className="flex items-center text-xs text-gray-600 font-medium">
-          <span className="mr-1 text-sm">©</span>
-          <span>כל הזכויות שמורות - אמיר לוגסי</span>
+      {/* הודעת זכויות יוצרים - בתחתית העמוד מימין */}
+      <footer className="py-4 px-4">
+        <div className="flex justify-end">
+          <div className="text-xs text-gray-600 font-medium py-1 px-2 bg-white/70 rounded-lg shadow-sm">
+            <span className="mr-1 text-sm">©</span>
+            <span>כל הזכויות שמורות - אמיר לוגסי</span>
+          </div>
         </div>
-      </div>
+      </footer>
     </div>
   )
 } 
