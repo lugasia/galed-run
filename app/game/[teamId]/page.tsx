@@ -420,11 +420,17 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     const serverIndex = teamData.currentPointIndex || 0;
     
     // If we have local state and it's ahead of the server, use it
-    const useLocalIndex = localIndex > serverIndex && 
-                          teamData.visitedPoints?.includes(getCurrentPoint()?._id);
+    const useLocalIndex = localIndex > serverIndex;
     
     // Final point index to use, prioritizing local progress
     const finalPointIndex = useLocalIndex ? localIndex : serverIndex;
+    
+    console.log('Progress preservation:', {
+      localIndex,
+      serverIndex,
+      useLocalIndex,
+      finalPointIndex
+    });
 
     // Update team with the correct point index
     const updatedTeam = {
