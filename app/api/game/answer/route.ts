@@ -394,7 +394,7 @@ export async function POST(request: Request) {
       : 'הבאה';
 
     return NextResponse.json({
-      message: `נכון מאד! רוץ לנקודה ${nextPointName}`,
+      message: `נכון מאד! "${answer}" - רוץ לנקודה ${nextPointName}`,
       correct: true,
       team: updateResult
     });
