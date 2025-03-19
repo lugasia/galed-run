@@ -865,21 +865,62 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   
   if (isRouteCompleted) {
     return (
-      <div className="flex flex-col h-screen">
-        <div className="bg-white shadow-md p-2">
-          <div className="text-center text-2xl font-bold">
-            {formatTime(finalTime || elapsedTime)}
+      <div className="flex flex-col min-h-screen">
+        <div className="bg-white shadow-md p-6 sticky top-0 z-10">
+          <div className="flex items-center justify-center">
+            <div className="bg-gradient-to-r from-green-500 to-teal-500 text-white px-6 py-2 rounded-full font-mono text-2xl shadow-md">
+              {formatTime(finalTime || elapsedTime)}
+            </div>
           </div>
         </div>
-        <div className="flex-1 flex items-center justify-center p-2">
-          <div className="text-center max-w-md w-full bg-white rounded-lg shadow-lg p-6">
-            <h1 className="text-3xl font-bold mb-4">סיימתם את המסלול!</h1>
-            <p className="text-xl text-gray-600 mb-4">כל הכבוד! השלמתם את כל הנקודות בהצלחה.</p>
-            <div className="text-2xl font-bold mb-4 bg-green-50 p-4 rounded-lg text-green-800">
-              זמן סופי: {formatTime(finalTime || elapsedTime)}
+        <div className="flex-1 flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 relative overflow-hidden"
+          >
+            {/* Confetti background effect */}
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-green-100 rounded-full opacity-50"></div>
+            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-100 rounded-full opacity-50"></div>
+            
+            <div className="relative z-10">
+              <div className="flex justify-center mb-6">
+                <div className="bg-green-100 p-3 rounded-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+              
+              <h1 className="text-3xl font-bold mb-4 text-center bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">
+                סיימתם את המסלול!
+              </h1>
+              
+              <p className="text-xl text-gray-600 mb-6 text-center">
+                כל הכבוד! השלמתם את כל הנקודות בהצלחה.
+              </p>
+              
+              <div className="bg-gradient-to-r from-green-50 to-teal-50 p-6 rounded-xl border border-green-200 mb-6 shadow-inner">
+                <div className="text-center">
+                  <div className="text-sm text-gray-600 mb-1">זמן סופי</div>
+                  <div className="text-3xl font-bold font-mono text-green-700">
+                    {formatTime(finalTime || elapsedTime)}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="text-center">
+                <p className="text-sm text-gray-500">תודה על השתתפותכם במשחק!</p>
+                <div className="flex justify-center mt-3 space-x-1 rtl:space-x-reverse">
+                  <span className="text-yellow-500">★</span>
+                  <span className="text-yellow-500">★</span>
+                  <span className="text-yellow-500">★</span>
+                  <span className="text-yellow-500">★</span>
+                  <span className="text-yellow-500">★</span>
+                </div>
+              </div>
             </div>
-            <p className="text-sm text-gray-500">תודה על השתתפותכם במשחק!</p>
-          </div>
+          </motion.div>
         </div>
       </div>
     );
@@ -926,28 +967,41 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   });
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-4">
       <div className="flex flex-col h-screen bg-gray-50">
-        <div className="h-3"></div>
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg p-2 sticky top-0 z-10"
+          className="bg-white rounded-2xl shadow-xl overflow-hidden mb-4 sticky top-0 z-10"
         >
-          <div className="text-center space-y-1">
-            <h1 className="text-lg font-bold">{team.name}</h1>
-            <div className="text-3xl font-mono tracking-wider">
-              {formatTime(elapsedTime)}
-            </div>
-            <div className="flex items-center justify-center gap-2 text-xs">
-              <span className="bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                נקודה {team?.currentPointIndex + 1} מתוך {points.length}
-              </span>
-              {penaltyTimeLeft > 0 && (
-                <span className="bg-red-500/80 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                  עונש: {formatPenaltyTime(penaltyTimeLeft)}
-                </span>
-              )}
+          <div className="relative overflow-hidden">
+            {/* גרדיאנט רקע דקורטיבי */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-400/30 to-indigo-400/30"></div>
+            
+            {/* תוכן השעון והמידע */}
+            <div className="relative px-6 py-4 z-10">
+              <div className="flex flex-col items-center">
+                <h1 className="text-xl font-bold text-gray-800 mb-1">{team.name}</h1>
+                
+                {/* השעון המרכזי */}
+                <div className="bg-white/70 backdrop-blur-sm px-8 py-2 rounded-full mb-2 shadow-md border border-gray-100">
+                  <div className="text-3xl font-mono font-bold tracking-wider bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    {formatTime(elapsedTime)}
+                  </div>
+                </div>
+                
+                {/* מידע נוסף */}
+                <div className="flex items-center justify-center gap-3 mt-1">
+                  <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm font-medium shadow-sm">
+                    נקודה {team?.currentPointIndex + 1} מתוך {points.length}
+                  </span>
+                  {penaltyTimeLeft > 0 && (
+                    <span className="px-3 py-1 rounded-full bg-red-100 text-red-700 text-sm font-medium shadow-sm animate-pulse">
+                      עונש: {formatPenaltyTime(penaltyTimeLeft)}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -958,12 +1012,27 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-gradient-to-r from-red-500 to-red-600 text-white rounded-2xl shadow-lg p-6 text-center"
+                className="bg-white rounded-2xl overflow-hidden shadow-lg"
               >
-                <h2 className="text-2xl font-bold mb-3">נפסלתם!</h2>
-                <p className="text-lg opacity-90">
-                  המתינו {formatPenaltyTime(penaltyTimeLeft)} לקבלת הרמז הבא
-                </p>
+                <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="bg-white/20 p-2 rounded-full">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="text-white font-mono text-xl px-4 py-1 bg-white/10 backdrop-blur-sm rounded-full">
+                      {formatPenaltyTime(penaltyTimeLeft)}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-6 text-center">
+                  <h2 className="text-2xl font-bold mb-3 text-red-600">נפסלתם!</h2>
+                  <p className="text-gray-700">
+                    המתינו לסיום העונשין לקבלת הרמז הבא
+                  </p>
+                </div>
               </motion.div>
             ) : (
               <>
@@ -993,36 +1062,36 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="bg-white rounded-lg shadow-lg p-3"
+                    className="bg-white rounded-2xl shadow-lg p-5"
                   >
                     {currentPoint.question.image && (
-                      <div className="mb-3 relative w-full">
+                      <div className="mb-4 relative w-full">
                         <img 
                           src={currentPoint.question.image} 
                           alt="תמונת השאלה" 
-                          className="w-2/5 mr-0 ml-auto max-h-[40vh] object-contain rounded-lg"
+                          className="w-2/5 mr-0 ml-auto max-h-[40vh] object-contain rounded-xl shadow-md"
                           onClick={() => setShowPointImage(true)}
                         />
                       </div>
                     )}
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="bg-blue-100 p-1.5 rounded-full">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="bg-blue-100 p-2 rounded-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
-                      <h2 className="text-base font-bold flex-1 leading-tight">{currentPoint.question.text}</h2>
+                      <h2 className="text-lg font-bold flex-1 leading-tight text-gray-800">{currentPoint.question.text}</h2>
                     </div>
-                    <div className="space-y-1.5 mt-2">
+                    <div className="space-y-2 mt-4">
                       {currentPoint.question.options.map((option, index) => (
                         <label 
                           key={index} 
-                          className={`flex items-center px-2 py-1.5 rounded transition-all text-sm
+                          className={`flex items-center px-3 py-2.5 rounded-xl transition-all text-sm
                             ${disabledOptions.includes(option) 
                               ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50' 
                               : selectedAnswer === option 
-                                ? 'bg-blue-50 border border-blue-500' 
-                                : 'bg-gray-50 hover:bg-gray-100 border border-transparent cursor-pointer'}`}
+                                ? 'bg-blue-50 border-2 border-blue-400 shadow-md' 
+                                : 'bg-gray-50 hover:bg-gray-100 border border-gray-200 hover:border-gray-300 cursor-pointer'}`}
                         >
                           <input
                             type="radio"
@@ -1031,27 +1100,27 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                             checked={selectedAnswer === option}
                             onChange={(e) => setSelectedAnswer(e.target.value)}
                             disabled={disabledOptions.includes(option)}
-                            className="w-3 h-3 text-blue-600 mr-2"
+                            className="w-4 h-4 text-blue-600 mr-3 cursor-pointer"
                           />
-                          <span>{option}</span>
+                          <span className="text-base">{option}</span>
                         </label>
                       ))}
                     </div>
                     <button
                       onClick={handleAnswerSubmit}
                       disabled={!selectedAnswer}
-                      className="mt-2 w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-1.5 px-3 rounded text-sm font-medium
+                      className="mt-5 w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-4 rounded-xl text-base font-medium
                         disabled:from-gray-400 disabled:to-gray-500 disabled:opacity-60 
-                        transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+                        transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-md hover:shadow-lg"
                     >
-                      שלח
+                      שלח תשובה
                     </button>
                   </motion.div>
                 ) : (
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="bg-white rounded-lg shadow-lg p-4 text-center"
+                    className="bg-white rounded-2xl shadow-lg p-5 text-center"
                   >
                     {/* כפתור הגעה לנקודה */}
                     <div className="grid place-items-center mt-2">
@@ -1060,25 +1129,36 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                         disabled={penaltyTimeLeft > 0}
                         className={`
                           ${isFinishPoint(currentPoint, points) && team?.visitedPoints?.includes(currentPoint?._id)
-                            ? 'bg-red-500 hover:bg-red-600 text-white'
-                            : 'bg-green-500 hover:bg-green-600 text-white'
+                            ? 'bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white'
+                            : 'bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white'
                           }
-                          rounded-full p-4 shadow-lg flex flex-col items-center justify-center transform active:scale-95 transition-all
-                          disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed
+                          rounded-full p-5 shadow-lg flex flex-col items-center justify-center transform active:scale-95 transition-all
+                          disabled:from-gray-400 disabled:to-gray-500 disabled:opacity-60 disabled:cursor-not-allowed
+                          w-32 h-32
                         `}
                       >
                         {isFinishPoint(currentPoint, points) && team?.visitedPoints?.includes(currentPoint?._id) ? (
                           <>
-                            <span className="font-bold block">הגעתי! עצור את השעון!</span>
-                            <small className="text-white/80">כל הנקודות הושלמו - סיים</small>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span className="font-bold block">הגעתי!</span>
+                            <span className="text-xs">עצור את השעון</span>
                           </>
                         ) : (
-                          <span className="font-bold">הגעתי! חשוף שאלה</span>
+                          <>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span className="font-bold block">הגעתי!</span>
+                            <span className="text-xs">חשוף שאלה</span>
+                          </>
                         )}
                       </button>
                       
                       {isFinishPoint(currentPoint, points) && team?.visitedPoints?.includes(currentPoint?._id) && (
-                        <small className="mt-1 text-center text-green-600">
+                        <small className="mt-3 text-center text-green-600 font-medium">
                           רוץ לנקודה {currentPoint?.name || 'הסיום'}
                         </small>
                       )}
@@ -1093,7 +1173,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 onClick={() => message.includes('נכון מאד') ? null : setMessage(null)}
-                className={`border-r-4 p-3 rounded-lg text-sm cursor-pointer ${
+                className={`border-r-4 p-4 rounded-xl text-base cursor-pointer shadow-md ${
                   message.includes('צדקת') || message.includes('נכון מאד')
                     ? 'bg-green-50 border-green-500 text-green-800' 
                     : message.includes('טעית') 
@@ -1103,7 +1183,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
               >
                 {message}
                 {(message.includes('צדקת') || message.includes('נכון מאד')) && (
-                  <div className="mt-2 text-xs text-gray-500">
+                  <div className="mt-2 text-sm text-gray-600">
                     לחץ על "הגעתי" להמשך
                   </div>
                 )}
@@ -1117,19 +1197,29 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white border-t border-gray-200 p-4"
+            className="bg-white rounded-2xl shadow-lg p-5 mb-4"
           >
             <div className="max-w-lg mx-auto">
-              <h3 className="font-bold text-sm mb-2 text-gray-700">תחנות שעברתם:</h3>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex items-center mb-3">
+                <div className="bg-green-100 p-1.5 rounded-full mr-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="font-bold text-base text-gray-700">תחנות שעברתם:</h3>
+              </div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {completedPoints.map((point, index) => (
-                  <div key={point._id} className="flex items-center bg-green-50 rounded-full px-3 py-1 text-sm">
-                    <div className="w-4 h-4 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
+                  <div key={point._id} className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl px-3 py-2 text-sm shadow-sm">
+                    <div className="flex items-center">
+                      <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mr-2 shadow-inner">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <span className="text-green-800 font-medium truncate">{point.name}</span>
                     </div>
-                    <span className="text-green-800">{point.name}</span>
                   </div>
                 ))}
               </div>
