@@ -20,6 +20,97 @@ interface EventWithDetails {
   createdAt: string;
 }
 
+// פונקציה משותפת לעיצוב זמן - מעבירה לדקות ושניות
+const formatTime = (ms: number) => {
+  if (!ms || isNaN(ms)) {
+    console.log('Invalid time value:', ms);
+    return '00:00';
+  }
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  return formattedTime;
+};
+
+// רכיב שמציג את הטבלה של 3 המיקומים הראשונים
+const TopTeamsBoard = ({ events }: { events: EventWithDetails[] }) => {
+  // סינון אירועי סיום והמרה למערך של תוצאות
+  const completionResults = events
+    .filter(event => event.type === 'ROUTE_COMPLETED' && event.details?.finalTime)
+    .map(event => ({
+      teamName: event.team?.name || 'קבוצה לא ידועה',
+      leaderName: event.team?.leaderName || '',
+      finalTime: event.details.finalTime,
+      routeName: event.route?.name || 'מסלול',
+      createdAt: event.createdAt
+    }))
+    // מיון לפי זמן מהקצר ביותר לארוך ביותר
+    .sort((a, b) => a.finalTime - b.finalTime)
+    // לקיחת 3 המקומות הראשונים בלבד
+    .slice(0, 3);
+
+  if (completionResults.length === 0) {
+    return null;
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-xl shadow-lg p-6 mb-6"
+    >
+      <h2 className="text-xl font-bold mb-4 text-center border-b pb-2 border-gray-200">
+        🏆 שלושת המיקומים הראשונים 🏆
+      </h2>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {completionResults.map((result, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: index * 0.1 }}
+            className={`relative p-4 rounded-lg overflow-hidden ${
+              index === 0 
+                ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 border border-yellow-300' 
+                : index === 1 
+                  ? 'bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-300' 
+                  : 'bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-300'
+            }`}
+          >
+            <div className="absolute top-0 right-0 w-12 h-12 flex items-center justify-center">
+              <div className={`rounded-full w-8 h-8 flex items-center justify-center font-bold ${
+                index === 0 
+                  ? 'bg-yellow-400 text-white' 
+                  : index === 1 
+                    ? 'bg-gray-400 text-white' 
+                    : 'bg-amber-600 text-white'
+              }`}>
+                {index + 1}
+              </div>
+            </div>
+            <div className="mr-6">
+              <h3 className="font-bold text-lg">{result.teamName}</h3>
+              <p className="text-sm text-gray-600 mb-2">{result.leaderName}</p>
+              <div className="flex items-center">
+                <span className="text-lg font-mono font-bold">
+                  {formatTime(result.finalTime)}
+                </span>
+                <span className="text-xs mr-2 text-gray-500">
+                  {new Date(result.createdAt).toLocaleTimeString('he-IL')}
+                </span>
+              </div>
+              <div className="text-xs mt-1 text-gray-500">
+                {result.routeName}
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </motion.div>
+  );
+};
+
 const EventCard = ({ event }: { event: EventWithDetails }) => {
   console.log('Event data:', {
     type: event.type,
@@ -48,19 +139,6 @@ const EventCard = ({ event }: { event: EventWithDetails }) => {
       default:
         return type;
     }
-  };
-
-  const formatTime = (ms: number) => {
-    if (!ms || isNaN(ms)) {
-      console.log('Invalid time value:', ms);
-      return '00:00';
-    }
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    console.log('Formatting time:', { ms, totalSeconds, minutes, seconds, formattedTime });
-    return formattedTime;
   };
 
   return (
@@ -201,6 +279,9 @@ export default function EventsPage() {
               {clearing ? 'מוחק...' : 'נקה יומן'}
             </button>
           </motion.div>
+
+          {/* לוח התוצאות המהירות */}
+          <TopTeamsBoard events={events} />
 
           {error && (
             <motion.div
