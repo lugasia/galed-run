@@ -64,19 +64,10 @@ interface Team {
 }
 
 // פונקציית עזר לזיהוי נקודת הסיום בצורה עקבית
-const isFinishPoint = (point: Point | null): boolean => {
-  if (!point) return false;
-  
-  // בדיקה לפי מספר קריטריונים אפשריים:
-  // 1. השדה isFinishPoint הוא true
-  // 2. הקוד הוא '1011' (קוד הפאב)
-  // 3. הנקודה מסומנת כנקודת סיום בצורה אחרת (להרחבה עתידית)
-  return (
-    !!point.isFinishPoint || 
-    point.code === '1011' ||
-    point.name?.includes('פאב') ||
-    point.name?.includes('Pub')
-  );
+const isFinishPoint = (point: Point | null, points: Point[]): boolean => {
+  if (!point || !points.length) return false;
+  // נקודת הסיום היא תמיד הנקודה האחרונה במערך הנקודות
+  return points.indexOf(point) === points.length - 1;
 };
 
 const formatTime = (ms: number) => {
@@ -283,10 +274,10 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           // When penalty ends, show the zoom out image (hint level 1)
           setCurrentHintLevel(1);
           
-          // אם זה הניסיון השלישי (אחרי עונשין שני), הצג הודעה לרוץ לנקודה הבאה
+          // אם זה הניסיון השלישי (אחרי עונשין שני), הצג את שם הנקודה
           if (team?.attempts >= 3) {
-            setMessage('רוץ לנקודה הבאה');
-            setShowQuestion(false); // הסתר את השאלה
+            setCurrentHintLevel(2);
+            setMessage('קיבלת את שם הנקודה כרמז');
           }
           
           clearInterval(interval);
@@ -296,7 +287,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [penaltyEndTime, team, setShowQuestion, setMessage, setCurrentHintLevel, setPenaltyTimeLeft, setPenaltyEndTime]);
+  }, [penaltyEndTime, team?.attempts]);
 
   useEffect(() => {
     console.log('Current game state:', {
@@ -431,16 +422,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           (point: Point) => team.visitedPoints.includes(point._id)
         );
         setCompletedPoints(completed);
-
-        // Check if current point is completed and advance if needed
-        const currentPoint = team.currentRoute.points[team.currentPointIndex];
-        if (currentPoint && team.visitedPoints.includes(currentPoint._id)) {
-          // Only advance if there are more points
-          if (team.currentPointIndex < team.currentRoute.points.length - 1) {
-            team.currentPointIndex++;
-            setShowQuestion(false); // Reset question state for next point
-          }
-        }
       }
     }
 
@@ -448,15 +429,12 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     const currentPoint = team.currentRoute?.points[team.currentPointIndex];
     const hasAnsweredCorrectly = team.visitedPoints?.includes(currentPoint?._id);
     
-    // Only show question automatically in these cases:
-    // 1. First point (index 0)
+    // Show question in these cases:
+    // 1. Not answered correctly yet
     // 2. Not in penalty
     // 3. Not already showing question
-    // 4. Not the final point that's been answered correctly
-    if (team.currentPointIndex === 0 && !team.penaltyEndTime && !showQuestion) {
+    if (!hasAnsweredCorrectly && !team.penaltyEndTime && !showQuestion) {
       setShowQuestion(true);
-    } else if (!team.penaltyEndTime && !showQuestion && !(isFinishPoint(currentPoint) && hasAnsweredCorrectly)) {
-      setShowQuestion(false);
     }
     
     // Check for hints
@@ -483,8 +461,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
     try {
       const currentPoint = points[team.currentPointIndex];
-      
-      // Extract teamId from uniqueLink
       const teamId = team.uniqueLink.split('/').pop() || team._id;
       
       console.log('Submitting answer:', {
@@ -492,7 +468,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         pointId: currentPoint._id,
         answer: selectedAnswer,
         currentPointIndex: team.currentPointIndex,
-        visitedPoints: team.visitedPoints
+        visitedPoints: team.visitedPoints,
+        attempts: team?.attempts || 0
       });
       
       const response = await fetch('/api/game/answer', {
@@ -524,15 +501,24 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         // תשובה נכונה
         setSelectedAnswer('');
         setCurrentHintLevel(0); // איפוס רמת הרמז
-        setShowQuestion(false); // הסתר את השאלה אחרי תשובה נכונה
+        setShowQuestion(false); // הסתר את השאלה
         setDisabledOptions([]); // איפוס האפשרויות החסומות
         
-        // עדכון הנקודות שהושלמו והקבוצה
         if (data.team) {
           console.log('Updating team data after correct answer:', {
             currentPointIndex: data.team.currentPointIndex,
             visitedPoints: data.team.visitedPoints
           });
+          
+          // Check if this was the last point
+          const isLastPoint = team.currentPointIndex === points.length - 1;
+          
+          if (isLastPoint) {
+            setMessage('כל הכבוד! רוץ לנקודת הסיום ולחץ על כפתור "עצור שעון"');
+          } else {
+            setMessage('צדקת! רוץ לנקודה הבאה');
+          }
+          
           setTeam(data.team);
           if (data.team.currentRoute?.points) {
             const completed = data.team.currentRoute.points.filter(
@@ -541,8 +527,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
             setCompletedPoints(completed);
           }
         }
-        
-        setMessage(data.message || 'צדקת! רוץ לנקודה הבאה');
       } else {
         // תשובה שגויה
         console.log('Incorrect answer:', {
@@ -556,12 +540,22 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         setDisabledOptions(prev => [...prev, selectedAnswer]);
         setSelectedAnswer('');
         
-        if (data.hintRequested && data.hintLevel !== undefined) {
-          setCurrentHintLevel(data.hintLevel);
+        // עדכון רמת הרמז בהתאם למספר הניסיונות
+        if (data.attempts === 1) {
+          // אחרי טעות ראשונה - הצג תמונת זום אין
+          setCurrentHintLevel(0);
+        } else if (data.attempts === 2) {
+          // אחרי טעות שניה - הצג תמונת זום אאוט
+          setCurrentHintLevel(1);
+        } else if (data.attempts >= 3) {
+          // אחרי טעות שלישית - הצג את שם הנקודה
+          setCurrentHintLevel(2);
         }
         
+        // אם יש עונשין, הפעל אותו
         if (data.penaltyEndTime) {
           setPenaltyEndTime(new Date(data.penaltyEndTime));
+          setMessage('נפסלתם! המתינו לסיום העונשין לקבלת הרמז הבא');
         }
         
         await fetchTeam();
@@ -576,7 +570,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     const hasAnsweredCorrectly = team?.visitedPoints?.includes(currentPoint?._id);
 
     console.log('handleRevealQuestion debug:', {
-        isFinalPoint: isFinishPoint(currentPoint),
+        isFinalPoint: isFinishPoint(currentPoint, points),
         hasAnsweredCorrectly,
         currentPoint,
         userLocation,
@@ -641,7 +635,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     }
 
     // אם זה הפאב וענו נכון על השאלה, לחיצה על הכפתור תסיים את המשחק
-    if (isFinishPoint(currentPoint) && hasAnsweredCorrectly && !gameCompleted) {
+    if (isFinishPoint(currentPoint, points) && hasAnsweredCorrectly && !gameCompleted) {
         const capturedTime = elapsedTime;
         console.log('Attempting to complete game with time:', capturedTime);
         
@@ -702,7 +696,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   const currentPoint = team && points.length > 0 ? points[team.currentPointIndex] : null;
   
   // Debugging: Log button text logic
-  console.log('Button text:', isFinishPoint(currentPoint) && completedPoints.some(p => p._id === currentPoint?._id) 
+  console.log('Button text:', isFinishPoint(currentPoint, points) && completedPoints.some(p => p._id === currentPoint?._id) 
     ? 'הגעתי! עצור את השעון!' 
     : 'הגעתי! חשוף שאלה');
 
@@ -1035,15 +1029,15 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                         onClick={handleRevealQuestion}
                         disabled={penaltyTimeLeft > 0}
                         className={`
-                          ${isFinishPoint(currentPoint) && team?.visitedPoints?.includes(currentPoint?._id)
-                            ? 'bg-red-500 hover:bg-red-600 text-white' // כפתור אדום רק בנקודה אחרונה שהושלמה
+                          ${isFinishPoint(currentPoint, points) && team?.visitedPoints?.includes(currentPoint?._id)
+                            ? 'bg-red-500 hover:bg-red-600 text-white'
                             : 'bg-green-500 hover:bg-green-600 text-white'
                           }
                           rounded-full p-4 shadow-lg flex flex-col items-center justify-center transform active:scale-95 transition-all
                           disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed
                         `}
                       >
-                        {isFinishPoint(currentPoint) && team?.visitedPoints?.includes(currentPoint?._id) ? (
+                        {isFinishPoint(currentPoint, points) && team?.visitedPoints?.includes(currentPoint?._id) ? (
                           <>
                             <span className="font-bold block">הגעתי! עצור את השעון!</span>
                             <small className="text-white/80">כל הנקודות הושלמו - סיים</small>
@@ -1053,7 +1047,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                         )}
                       </button>
                       
-                      {isFinishPoint(currentPoint) && team?.visitedPoints?.includes(currentPoint?._id) && (
+                      {isFinishPoint(currentPoint, points) && team?.visitedPoints?.includes(currentPoint?._id) && (
                         <small className="mt-1 text-center text-green-600">
                           כל הנקודות הושלמו! לחץ על הכפתור לסיום
                         </small>
