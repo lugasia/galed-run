@@ -461,22 +461,43 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
     try {
       const currentPoint = points[team.currentPointIndex];
+      const teamId = team.uniqueLink.split('/').pop() || team._id;
       
-      // Check if answer is correct (locally)
-      const isCorrect = selectedAnswer === currentPoint.question.correctAnswer;
+      console.log('Submitting answer:', {
+        teamId,
+        pointId: currentPoint._id,
+        answer: selectedAnswer,
+        currentPointIndex: team.currentPointIndex,
+        visitedPoints: team.visitedPoints,
+        attempts: team?.attempts || 0
+      });
       
-      if (isCorrect) {
+      const response = await fetch('/api/game/answer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          teamId,
+          pointId: currentPoint._id,
+          answer: selectedAnswer,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Error submitting answer:', { status: response.status, data });
+        setMessage(data.message || 'שגיאה בשליחת התשובה');
+        return;
+      }
+
+      if (data.correct) {
         // Reset states after correct answer
         setSelectedAnswer('');
         setCurrentHintLevel(0);
         setShowQuestion(false);
         setDisabledOptions([]);
-        
-        // Update visited points locally
-        const updatedVisitedPoints = [...(team.visitedPoints || [])];
-        if (!updatedVisitedPoints.includes(currentPoint._id)) {
-          updatedVisitedPoints.push(currentPoint._id);
-        }
         
         // Check if this was the last point
         const isLastPoint = team.currentPointIndex === points.length - 1;
@@ -487,39 +508,38 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           setMessage('צדקת! רוץ לנקודה הבאה');
         }
         
-        // Update team data locally
-        setTeam({
-          ...team,
-          visitedPoints: updatedVisitedPoints
-        });
-        
-        // Update completed points
-        const completed = points.filter(
-          point => updatedVisitedPoints.includes(point._id)
-        );
-        setCompletedPoints(completed);
-        
+        // Update team data
+        if (data.team) {
+          setTeam(data.team);
+          if (data.team.currentRoute?.points) {
+            const completed = data.team.currentRoute.points.filter(
+              (point: Point) => data.team.visitedPoints.includes(point._id)
+            );
+            setCompletedPoints(completed);
+          }
+        }
       } else {
         // Handle incorrect answer
-        setMessage('טעית, נסה שוב');
+        setMessage(data.message || 'טעית, נסה שוב');
         setDisabledOptions(prev => [...prev, selectedAnswer]);
         setSelectedAnswer('');
         
         // Update hint level based on attempts
-        const newAttempts = (team.attempts || 0) + 1;
-        if (newAttempts === 1) {
+        if (data.attempts === 1) {
           setCurrentHintLevel(0); // Show zoom in image
-        } else if (newAttempts === 2) {
+        } else if (data.attempts === 2) {
           setCurrentHintLevel(1); // Show zoom out image
-        } else if (newAttempts >= 3) {
+        } else if (data.attempts >= 3) {
           setCurrentHintLevel(2); // Show point name
         }
         
-        // Update team attempts locally
-        setTeam({
-          ...team,
-          attempts: newAttempts
-        });
+        // Handle penalty if applicable
+        if (data.penaltyEndTime) {
+          setPenaltyEndTime(new Date(data.penaltyEndTime));
+          setMessage('נפסלתם! המתינו לסיום העונשין לקבלת הרמז הבא');
+        }
+        
+        await fetchTeam();
       }
     } catch (error) {
       console.error('Error in handleAnswerSubmit:', error);
@@ -545,40 +565,53 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       return;
     }
 
-    // If this is the final point and we've answered correctly, handle game completion
-    const isLastPoint = team.currentPointIndex === points.length - 1;
-    const hasAnsweredCorrectly = team.visitedPoints?.includes(currentPoint._id);
+    try {
+      // Send reach-point request to server
+      const teamId = team.uniqueLink.split('/').pop() || team._id;
+      const response = await fetch(`/api/game/${teamId}/reach-point`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pointId: currentPoint._id,
+          location: userLocation
+        }),
+      });
 
-    if (isLastPoint && hasAnsweredCorrectly && !gameCompleted) {
-      const capturedTime = elapsedTime;
-      setFinalTime(capturedTime);
-      setGameCompleted(true);
-      setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
-      
-      // Stop timer
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
+      if (!response.ok) {
+        const data = await response.json();
+        setMessage(data.message || 'שגיאה בעדכון הנקודה');
+        return;
       }
-      return;
-    }
 
-    // If we answered correctly for the current point, move to the next point
-    if (hasAnsweredCorrectly) {
-      const newTeam = {
-        ...team,
-        currentPointIndex: team.currentPointIndex + 1
-      };
-      setTeam(newTeam);
-      setShowQuestion(true);
-      setMessage(null);
-      return;
-    }
+      // If this is the final point and we've answered correctly, handle game completion
+      const isLastPoint = team.currentPointIndex === points.length - 1;
+      const hasAnsweredCorrectly = team.visitedPoints?.includes(currentPoint._id);
 
-    // For all other points, show question if we haven't already
-    if (!showQuestion) {
-      setShowQuestion(true);
-      setMessage(null);
+      if (isLastPoint && hasAnsweredCorrectly && !gameCompleted) {
+        const capturedTime = elapsedTime;
+        setFinalTime(capturedTime);
+        setGameCompleted(true);
+        setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
+        
+        // Stop timer
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        return;
+      }
+
+      // For all other points, show question if we haven't already
+      if (!showQuestion) {
+        setShowQuestion(true);
+        setMessage(null);
+      }
+
+    } catch (error) {
+      console.error('Error in handleRevealQuestion:', error);
+      setMessage('שגיאה בעדכון הנקודה');
     }
   };
 
