@@ -484,41 +484,32 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         }),
       });
 
-      console.log('Answer response status:', response.status);
       const data = await response.json();
-      console.log('Answer response data:', data);
-
+      
       if (!response.ok) {
-        console.error('Error submitting answer:', {
-          status: response.status,
-          data
-        });
+        console.error('Error submitting answer:', { status: response.status, data });
         setMessage(data.message || 'שגיאה בשליחת התשובה');
         return;
       }
 
       if (data.correct) {
-        // תשובה נכונה
+        // Reset states after correct answer
         setSelectedAnswer('');
-        setCurrentHintLevel(0); // איפוס רמת הרמז
-        setShowQuestion(false); // הסתר את השאלה
-        setDisabledOptions([]); // איפוס האפשרויות החסומות
+        setCurrentHintLevel(0);
+        setShowQuestion(false);
+        setDisabledOptions([]);
         
+        // Check if this was the last point
+        const isLastPoint = team.currentPointIndex === points.length - 1;
+        
+        if (isLastPoint) {
+          setMessage('כל הכבוד! רוץ לנקודת הסיום ולחץ על כפתור "עצור שעון"');
+        } else {
+          setMessage('צדקת! רוץ לנקודה הבאה');
+        }
+        
+        // Update team data
         if (data.team) {
-          console.log('Updating team data after correct answer:', {
-            currentPointIndex: data.team.currentPointIndex,
-            visitedPoints: data.team.visitedPoints
-          });
-          
-          // Check if this was the last point
-          const isLastPoint = team.currentPointIndex === points.length - 1;
-          
-          if (isLastPoint) {
-            setMessage('כל הכבוד! רוץ לנקודת הסיום ולחץ על כפתור "עצור שעון"');
-          } else {
-            setMessage('צדקת! רוץ לנקודה הבאה');
-          }
-          
           setTeam(data.team);
           if (data.team.currentRoute?.points) {
             const completed = data.team.currentRoute.points.filter(
@@ -528,31 +519,21 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           }
         }
       } else {
-        // תשובה שגויה
-        console.log('Incorrect answer:', {
-          attempts: data.attempts,
-          hintRequested: data.hintRequested,
-          hintLevel: data.hintLevel,
-          penaltyEndTime: data.penaltyEndTime
-        });
-        
+        // Handle incorrect answer
         setMessage(data.message || 'טעית, נסה שוב');
         setDisabledOptions(prev => [...prev, selectedAnswer]);
         setSelectedAnswer('');
         
-        // עדכון רמת הרמז בהתאם למספר הניסיונות
+        // Update hint level based on attempts
         if (data.attempts === 1) {
-          // אחרי טעות ראשונה - הצג תמונת זום אין
-          setCurrentHintLevel(0);
+          setCurrentHintLevel(0); // Show zoom in image
         } else if (data.attempts === 2) {
-          // אחרי טעות שניה - הצג תמונת זום אאוט
-          setCurrentHintLevel(1);
+          setCurrentHintLevel(1); // Show zoom out image
         } else if (data.attempts >= 3) {
-          // אחרי טעות שלישית - הצג את שם הנקודה
-          setCurrentHintLevel(2);
+          setCurrentHintLevel(2); // Show point name
         }
         
-        // אם יש עונשין, הפעל אותו
+        // Handle penalty if applicable
         if (data.penaltyEndTime) {
           setPenaltyEndTime(new Date(data.penaltyEndTime));
           setMessage('נפסלתם! המתינו לסיום העונשין לקבלת הרמז הבא');
@@ -567,140 +548,93 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   };
 
   const handleRevealQuestion = async () => {
-    const hasAnsweredCorrectly = team?.visitedPoints?.includes(currentPoint?._id);
-
-    console.log('handleRevealQuestion debug:', {
-        isFinalPoint: isFinishPoint(currentPoint, points),
-        hasAnsweredCorrectly,
-        currentPoint,
-        userLocation,
-        team: {
-            _id: team?._id,
-            uniqueLink: team?.uniqueLink,
-            visitedPoints: team?.visitedPoints,
-            currentPointIndex: team?.currentPointIndex
-        },
-        elapsedTime,
-        gameCompleted
-    });
-
-    // בדיקת מרחק מהנקודה הנוכחית
     if (!userLocation) {
-        setMessage('לא ניתן לאתר את מיקומך. אנא ודא שה-GPS מופעל.');
-        return;
+      setMessage('לא ניתן לאתר את מיקומך. אנא ודא שה-GPS מופעל.');
+      return;
     }
 
-    if (currentPoint?.location) {
-        const distance = calculateDistance(userLocation, currentPoint.location);
-        const maxDistanceKm = 0.05; // 50 מטר = 0.05 קילומטר
-        
-        if (distance > maxDistanceKm) {
-            setMessage(`אתה נמצא במרחק ${Math.round(distance * 1000)} מטר מהנקודה. עליך להתקרב למרחק של עד 50 מטר כדי לענות על השאלה.`);
-            return;
-        }
+    const currentPoint = getCurrentPoint();
+    if (!currentPoint?.location) return;
 
-        // אם ענו נכון על השאלה הקודמת, נקדם לנקודה הבאה
-        if (hasAnsweredCorrectly && !isFinishPoint(currentPoint, points)) {
-          const newTeam = {
-            ...team!,
-            currentPointIndex: team!.currentPointIndex + 1
-          };
-          setTeam(newTeam);
-          setShowQuestion(false);
-          return;
-        }
-
-        // עדכון הנקודה והאינדקס רק אם המשתמש קרוב מספיק והנקודה לא מסומנת כבר כמבוקרת
-        if (!team?.visitedPoints?.includes(currentPoint._id)) {
-          try {
-            const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
-            const response = await fetch('/api/game/reach-point', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                teamId,
-                pointId: currentPoint._id,
-              }),
-            });
-
-            if (!response.ok) {
-              throw new Error('Failed to update point');
-            }
-
-            const data = await response.json();
-            
-            // אם העדכון הצליח, נציג את השאלה מיד
-            if (data.success) {
-              setShowQuestion(true);
-              setMessage(null);
-              return;
-            }
-          } catch (error) {
-            console.error('Error updating point:', error);
-            setMessage('שגיאה בעדכון הנקודה');
-            return;
-          }
-        }
+    // Check distance to current point
+    const distance = calculateDistance(userLocation, currentPoint.location);
+    const maxDistanceKm = 0.05; // 50 meters
+    
+    if (distance > maxDistanceKm) {
+      setMessage(`אתה נמצא במרחק ${Math.round(distance * 1000)} מטר מהנקודה. עליך להתקרב למרחק של עד 50 מטר כדי לענות על השאלה.`);
+      return;
     }
 
-    // אם זה הפאב וענו נכון על השאלה, לחיצה על הכפתור תסיים את המשחק
-    if (isFinishPoint(currentPoint, points) && hasAnsweredCorrectly && !gameCompleted) {
-        const capturedTime = elapsedTime;
-        console.log('Attempting to complete game with time:', capturedTime);
+    // If this is the final point and we've answered correctly, handle game completion
+    const isLastPoint = team?.currentPointIndex === points.length - 1;
+    const hasAnsweredCorrectly = team?.visitedPoints?.includes(currentPoint._id);
+
+    if (isLastPoint && hasAnsweredCorrectly && !gameCompleted) {
+      const capturedTime = elapsedTime;
+      
+      try {
+        const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
+        const response = await fetch(`/api/game/${teamId}/complete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            completionTime: capturedTime,
+            finalTime: capturedTime,
+            completedAt: new Date().toISOString()
+          }),
+        });
         
-        // עצירת הטיימר
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        setFinalTime(capturedTime);
+        setGameCompleted(true);
+        setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
+        
+        // Stop timer
         if (timerRef.current) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-            console.log('Timer stopped');
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      } catch (error) {
+        console.error('Error saving completion time:', error);
+        setMessage('שגיאה בשמירת זמן הסיום. אנא נסו שוב.');
+      }
+      return;
+    }
+
+    // For all other points, show question if we haven't already
+    if (!showQuestion) {
+      try {
+        const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
+        const response = await fetch('/api/game/reach-point', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamId,
+            pointId: currentPoint._id,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update point');
         }
 
-        try {
-            const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
-            console.log('Sending completion request for teamId:', teamId);
-            
-            const response = await fetch(`/api/game/${teamId}/complete`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    completionTime: capturedTime,
-                    finalTime: capturedTime,
-                    completedAt: new Date().toISOString()
-                }),
-            });
-            
-            console.log('Completion response status:', response.status);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            // רק אחרי שהשמירה הצליחה, נעדכן את המצב
-            setFinalTime(capturedTime);
-            setGameCompleted(true);
-            setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(capturedTime)}`);
-        } catch (error) {
-            console.error('Error saving completion time:', error);
-            // במקרה של שגיאה, נחזיר את הטיימר למצב פעיל
-            if (!timerRef.current) {
-                timerRef.current = setInterval(() => {
-                    const now = new Date().getTime();
-                    const start = new Date(team!.startTime!).getTime();
-                    setElapsedTime(now - start);
-                }, 1000);
-            }
-            setMessage('שגיאה בשמירת זמן הסיום. אנא נסו שוב.');
-        }
-    } else if (!gameCompleted) {
-        // בכל נקודה אחרת, הצג את השאלה רק אם עוד לא הוצגה
-        if (!showQuestion) {
+        const data = await response.json();
+        
+        if (data.success) {
           setShowQuestion(true);
           setMessage(null);
         }
+      } catch (error) {
+        console.error('Error updating point:', error);
+        setMessage('שגיאה בעדכון הנקודה');
+      }
     }
   };
 
