@@ -1079,7 +1079,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
                       
                       {isFinishPoint(currentPoint, points) && team?.visitedPoints?.includes(currentPoint?._id) && (
                         <small className="mt-1 text-center text-green-600">
-                          כל הנקודות הושלמו! לחץ על הכפתור לסיום
+                          רוץ לנקודה {currentPoint?.name || 'הסיום'}
                         </small>
                       )}
                     </div>
