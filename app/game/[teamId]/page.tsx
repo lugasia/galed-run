@@ -508,16 +508,19 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           setMessage('צדקת! רוץ לנקודה הבאה');
         }
         
-        // Update team data
-        if (data.team) {
-          setTeam(data.team);
-          if (data.team.currentRoute?.points) {
-            const completed = data.team.currentRoute.points.filter(
-              (point: Point) => data.team.visitedPoints.includes(point._id)
-            );
-            setCompletedPoints(completed);
-          }
-        }
+        // Update team data without fetching from server
+        const updatedTeam = {
+          ...team,
+          visitedPoints: [...(team.visitedPoints || []), currentPoint._id],
+          attempts: 0
+        };
+        setTeam(updatedTeam);
+        
+        // Update completed points
+        const completed = points.filter(
+          (point: Point) => updatedTeam.visitedPoints.includes(point._id)
+        );
+        setCompletedPoints(completed);
       } else {
         // Handle incorrect answer
         setMessage(data.message || 'טעית, נסה שוב');
@@ -525,11 +528,12 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         setSelectedAnswer('');
         
         // Update hint level based on attempts
-        if (data.attempts === 1) {
+        const newAttempts = (team.attempts || 0) + 1;
+        if (newAttempts === 1) {
           setCurrentHintLevel(0); // Show zoom in image
-        } else if (data.attempts === 2) {
+        } else if (newAttempts === 2) {
           setCurrentHintLevel(1); // Show zoom out image
-        } else if (data.attempts >= 3) {
+        } else if (newAttempts >= 3) {
           setCurrentHintLevel(2); // Show point name
         }
         
@@ -539,7 +543,11 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           setMessage('נפסלתם! המתינו לסיום העונשין לקבלת הרמז הבא');
         }
         
-        await fetchTeam();
+        // Update attempts locally
+        setTeam({
+          ...team,
+          attempts: newAttempts
+        });
       }
     } catch (error) {
       console.error('Error in handleAnswerSubmit:', error);
@@ -603,7 +611,19 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         return;
       }
 
-      // For all other points, show question if we haven't already
+      // If we've answered correctly for the current point, move to next point
+      if (hasAnsweredCorrectly) {
+        const nextPointIndex = team.currentPointIndex + 1;
+        if (nextPointIndex < points.length) {
+          setTeam({
+            ...team,
+            currentPointIndex: nextPointIndex,
+            attempts: 0
+          });
+        }
+      }
+
+      // Show question if we haven't already
       if (!showQuestion) {
         setShowQuestion(true);
         setMessage(null);
