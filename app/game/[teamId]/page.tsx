@@ -574,25 +574,6 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     }
 
     try {
-      // Send reach-point request to server
-      const teamId = team.uniqueLink.split('/').pop() || team._id;
-      const response = await fetch(`/api/game/${teamId}/reach-point`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          pointId: currentPoint._id,
-          location: userLocation
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        setMessage(data.message || 'שגיאה בעדכון הנקודה');
-        return;
-      }
-
       // If this is the final point and we've answered correctly, handle game completion
       const isLastPoint = team.currentPointIndex === points.length - 1;
       const hasAnsweredCorrectly = team.visitedPoints?.includes(currentPoint._id);
@@ -608,6 +589,20 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
+
+        // Save completion time to server
+        const teamId = team.uniqueLink.split('/').pop() || team._id;
+        await fetch(`/api/game/${teamId}/complete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            completionTime: capturedTime,
+            finalTime: capturedTime,
+            completedAt: new Date().toISOString()
+          }),
+        });
         return;
       }
 
@@ -615,11 +610,15 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       if (hasAnsweredCorrectly) {
         const nextPointIndex = team.currentPointIndex + 1;
         if (nextPointIndex < points.length) {
-          setTeam({
+          const updatedTeam = {
             ...team,
             currentPointIndex: nextPointIndex,
             attempts: 0
-          });
+          };
+          setTeam(updatedTeam);
+          setShowQuestion(true);
+          setMessage(null);
+          return;
         }
       }
 
