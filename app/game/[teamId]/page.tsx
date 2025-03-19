@@ -548,7 +548,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   };
 
   const handleRevealQuestion = async () => {
-    if (!userLocation) {
+    if (!userLocation || !team) {
       setMessage('לא ניתן לאתר את מיקומך. אנא ודא שה-GPS מופעל.');
       return;
     }
@@ -566,14 +566,14 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
     }
 
     // If this is the final point and we've answered correctly, handle game completion
-    const isLastPoint = team?.currentPointIndex === points.length - 1;
-    const hasAnsweredCorrectly = team?.visitedPoints?.includes(currentPoint._id);
+    const isLastPoint = team.currentPointIndex === points.length - 1;
+    const hasAnsweredCorrectly = team.visitedPoints?.includes(currentPoint._id);
 
     if (isLastPoint && hasAnsweredCorrectly && !gameCompleted) {
       const capturedTime = elapsedTime;
       
       try {
-        const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
+        const teamId = team.uniqueLink.split('/').pop() || team._id;
         const response = await fetch(`/api/game/${teamId}/complete`, {
           method: 'POST',
           headers: {
@@ -606,35 +606,22 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       return;
     }
 
+    // If we answered correctly for the current point, move to the next point
+    if (hasAnsweredCorrectly) {
+      const newTeam = {
+        ...team,
+        currentPointIndex: team.currentPointIndex + 1
+      };
+      setTeam(newTeam);
+      setShowQuestion(true);
+      setMessage(null);
+      return;
+    }
+
     // For all other points, show question if we haven't already
     if (!showQuestion) {
-      try {
-        const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
-        const response = await fetch('/api/game/reach-point', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            teamId,
-            pointId: currentPoint._id,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to update point');
-        }
-
-        const data = await response.json();
-        
-        if (data.success) {
-          setShowQuestion(true);
-          setMessage(null);
-        }
-      } catch (error) {
-        console.error('Error updating point:', error);
-        setMessage('שגיאה בעדכון הנקודה');
-      }
+      setShowQuestion(true);
+      setMessage(null);
     }
   };
 
