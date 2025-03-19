@@ -404,56 +404,76 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   };
   
   // פונקציה לעיבוד נתוני הקבוצה
-  const processTeamData = (team: Team) => {
+  const processTeamData = (teamData: any) => {
+    if (!teamData) return;
+
     console.log('processTeamData debug:', {
-      serverPointIndex: team.currentPointIndex,
-      totalPoints: team.currentRoute?.points?.length,
-      visitedPoints: team.visitedPoints,
-      isRouteCompleted: team.currentPointIndex >= (team.currentRoute?.points?.length || 0),
-      gameCompleted
+      serverPointIndex: teamData.currentPointIndex,
+      totalPoints: points?.length,
+      visitedPoints: teamData.visitedPoints || [],
+      isRouteCompleted: teamData.currentRoute?.isCompleted,
+      gameCompleted: teamData.gameCompleted,
     });
 
-    if (team?.currentRoute?.points) {
-      setPoints(team.currentRoute.points);
-      
-      // Update completed points list
-      if (team.visitedPoints && team.visitedPoints.length > 0) {
-        const completed = team.currentRoute.points.filter(
-          (point: Point) => team.visitedPoints.includes(point._id)
-        );
-        setCompletedPoints(completed);
-      }
+    // Use local state if it's ahead of server state (to prevent rollback)
+    const localIndex = team?.currentPointIndex || 0;
+    const serverIndex = teamData.currentPointIndex || 0;
+    
+    // If we have local state and it's ahead of the server, use it
+    const useLocalIndex = localIndex > serverIndex && 
+                          teamData.visitedPoints?.includes(getCurrentPoint()?._id);
+    
+    // Final point index to use, prioritizing local progress
+    const finalPointIndex = useLocalIndex ? localIndex : serverIndex;
+
+    // Update team with the correct point index
+    const updatedTeam = {
+      ...teamData,
+      currentPointIndex: finalPointIndex,
+    };
+
+    // Set points if available from server
+    if (teamData?.currentRoute?.points) {
+      setPoints(teamData.currentRoute.points);
     }
 
     // Get current point after potential index update
-    const currentPoint = team.currentRoute?.points[team.currentPointIndex];
-    const hasAnsweredCorrectly = team.visitedPoints?.includes(currentPoint?._id);
+    const currentPoint = points?.[finalPointIndex];
+    const hasAnsweredCorrectly = teamData.visitedPoints?.includes(currentPoint?._id);
     
     // Show question in these cases:
     // 1. Not answered correctly yet
     // 2. Not in penalty
     // 3. Not already showing question
-    if (!hasAnsweredCorrectly && !team.penaltyEndTime && !showQuestion) {
+    if (!hasAnsweredCorrectly && !teamData.penaltyEndTime && !showQuestion) {
       setShowQuestion(true);
     }
     
     // Check for hints
-    if (team?.hintRequested) {
-      if (team.hintRequested.pointIndex === team.currentPointIndex) {
-        setCurrentHintLevel(team.hintRequested.hintLevel);
+    if (teamData?.hintRequested) {
+      if (teamData.hintRequested.pointIndex === finalPointIndex) {
+        setCurrentHintLevel(teamData.hintRequested.hintLevel);
       }
     }
     
     // Check for penalties
-    if (team?.penaltyEndTime) {
-      const penaltyEnd = new Date(team.penaltyEndTime);
+    if (teamData?.penaltyEndTime) {
+      const penaltyEnd = new Date(teamData.penaltyEndTime);
       if (penaltyEnd > new Date()) {
         setPenaltyEndTime(penaltyEnd);
       }
     }
 
     // Update team state
-    setTeam(team);
+    setTeam(updatedTeam);
+
+    // Get completed points based on visitedPoints
+    if (points) {
+      const completed = points.filter(
+        (point: Point) => updatedTeam.visitedPoints?.includes(point._id)
+      );
+      setCompletedPoints(completed);
+    }
   };
 
   const handleAnswerSubmit = async () => {
