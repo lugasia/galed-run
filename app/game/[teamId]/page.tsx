@@ -516,10 +516,15 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           if (isLastPoint) {
             setMessage('כל הכבוד! רוץ לנקודת הסיום ולחץ על כפתור "עצור שעון"');
           } else {
+            // Advance to next point
+            const newTeam = {
+              ...data.team,
+              currentPointIndex: data.team.currentPointIndex + 1
+            };
+            setTeam(newTeam);
             setMessage('צדקת! רוץ לנקודה הבאה');
           }
           
-          setTeam(data.team);
           if (data.team.currentRoute?.points) {
             const completed = data.team.currentRoute.points.filter(
               (point: Point) => data.team.visitedPoints.includes(point._id)
