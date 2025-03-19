@@ -303,6 +303,12 @@ export async function POST(request: Request) {
         const penaltyTime = penaltyMinutes * 60 * 1000;
         const penaltyEndTime = new Date(Date.now() + penaltyTime);
         
+        // Get the next point name if available
+        const nextPointIndex = updatedTeam.currentPointIndex + 1;
+        const nextPointName = nextPointIndex < updatedTeam.currentRoute.points.length 
+          ? updatedTeam.currentRoute.points[nextPointIndex].name 
+          : 'הבאה';
+        
         // Apply penalty and move to next point
         await Team.findByIdAndUpdate(
           updatedTeam._id,
@@ -318,7 +324,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json({
           correct: false,
-          message: 'טעית, המתן לזמן העונשין ואז רוץ לנקודה הבאה',
+          message: `טעית, המתן לזמן העונשין ואז רוץ לנקודה ${nextPointName}`,
           penaltyEndTime: penaltyEndTime.toISOString(),
           attempts: attempts
         });
@@ -381,8 +387,14 @@ export async function POST(request: Request) {
 
     await updateResult.save();
 
+    // Get the next point name if available
+    const nextPointIndex = updateResult.currentPointIndex;
+    const nextPointName = nextPointIndex < updateResult.currentRoute.points.length 
+      ? updateResult.currentRoute.points[nextPointIndex].name 
+      : 'הבאה';
+
     return NextResponse.json({
-      message: 'נכון מאד! רוץ לנקודה הבאה',
+      message: `נכון מאד! רוץ לנקודה ${nextPointName}`,
       correct: true,
       team: updateResult
     });
