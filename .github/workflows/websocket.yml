@@ -27,7 +27,7 @@ jobs:
         
     - name: Run WebSocket Server
       env:
-        PORT: 8080
+        PORT: 3001
         NODE_ENV: production
       run: |
         echo "WebSocket server starting on port $PORT"
