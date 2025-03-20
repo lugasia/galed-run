@@ -184,6 +184,22 @@ export async function POST(request: Request) {
       }, { status: 404 });
     }
 
+    // Check if the point has already been visited/completed
+    if (team.visitedPoints && team.visitedPoints.includes(point._id)) {
+      debugInfo.stage = 'point_already_visited';
+      console.log('Point has already been visited:', {
+        pointId: point._id,
+        teamId: team._id
+      });
+      
+      return NextResponse.json({
+        message: 'כבר ענית נכון על שאלה זו!',
+        correct: true,  // Return as correct so the client knows to proceed
+        alreadyCompleted: true,
+        team: team
+      });
+    }
+
     if (point._id.toString() !== pointId) {
       debugInfo.stage = 'point_id_mismatch';
       console.error('Point ID mismatch:', {

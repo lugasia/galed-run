@@ -122,6 +122,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   const [completedPoints, setCompletedPoints] = useState<Point[]>([]);
   const [disabledOptions, setDisabledOptions] = useState<string[]>([]);
   const [gameCompleted, setGameCompleted] = useState(false);
+  const [answerCorrectButNotCompleted, setAnswerCorrectButNotCompleted] = useState<boolean>(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -297,6 +298,37 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       completedPoints
     });
   }, [team, team?.currentRoute?.points, team?.currentPointIndex, team?.visitedPoints, completedPoints]);
+
+  // Add effect to prevent refresh
+  useEffect(() => {
+    // Check localStorage on component mount to see if user was in middle of point completion
+    const savedAnswerState = localStorage.getItem(`correct_answer_${params.teamId}_${team?.currentPointIndex}`);
+    if (savedAnswerState === 'true' && team && !gameCompleted) {
+      const currentPoint = points?.[team.currentPointIndex];
+      const hasVisitedCurrentPoint = currentPoint && team.visitedPoints?.includes(currentPoint._id);
+      
+      if (!hasVisitedCurrentPoint) {
+        setAnswerCorrectButNotCompleted(true);
+        setMessage('ענית נכון על השאלה! התקדם לנקודה הבאה.');
+        setShowQuestion(false);
+      }
+    }
+    
+    // Add beforeunload event listener
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (answerCorrectButNotCompleted) {
+        const message = 'האם אתה בטוח שברצונך לרענן את הדף? ייתכן שתצטרך לענות שוב על השאלה.';
+        e.returnValue = message;
+        return message;
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [params.teamId, team, points, answerCorrectButNotCompleted, gameCompleted]);
 
   const fetchTeam = async () => {
     try {
@@ -480,6 +512,11 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       );
       setCompletedPoints(completed);
     }
+
+    // Check if a point was just completed
+    if (team && updatedTeam.visitedPoints?.length > team.visitedPoints?.length) {
+      handlePointCompleted();
+    }
   };
 
   const handleAnswerSubmit = async () => {
@@ -519,11 +556,41 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }
 
       if (data.correct) {
+        // Check if this is a point that was already completed (to handle refresh case)
+        if (data.alreadyCompleted) {
+          setMessage(data.message || 'כבר ענית נכון על שאלה זו!');
+          setSelectedAnswer('');
+          setCurrentHintLevel(0);
+          setShowQuestion(false);
+          setDisabledOptions([]);
+          
+          // Make sure our local state matches the server state
+          if (data.team) {
+            setTeam(data.team);
+            
+            // Update completed points based on server data
+            if (data.team.visitedPoints && points) {
+              const completed = points.filter(
+                (point: Point) => data.team.visitedPoints.includes(point._id)
+              );
+              setCompletedPoints(completed);
+            }
+          }
+          
+          return;
+        }
+        
         // Reset states after correct answer
         setSelectedAnswer('');
         setCurrentHintLevel(0);
         setShowQuestion(false);
         setDisabledOptions([]);
+        
+        // Set the flag that user answered correctly but may not have completed the checkpoint
+        setAnswerCorrectButNotCompleted(true);
+        
+        // Save this state to localStorage in case of refresh
+        localStorage.setItem(`correct_answer_${params.teamId}_${team.currentPointIndex}`, 'true');
         
         // Check if this was the last point
         const isLastPoint = team.currentPointIndex === points.length - 1;
@@ -792,6 +859,15 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       timestamp: new Date().toISOString()
     });
   }, [team?.currentPointIndex, team?.visitedPoints, team?.attempts]);
+
+  // Add function to update state when user completes checkpoint
+  const handlePointCompleted = () => {
+    // Clear the localStorage flag for this point
+    if (team) {
+      localStorage.removeItem(`correct_answer_${params.teamId}_${team.currentPointIndex}`);
+      setAnswerCorrectButNotCompleted(false);
+    }
+  };
 
   if (loading) {
     return (

@@ -30,5 +30,6 @@ jobs:
         PORT: 3001
         NODE_ENV: production
       run: |
-        echo "WebSocket server starting on port $PORT"
+        echo "WebSocket server starting on port $PORT in $NODE_ENV mode"
+        echo "WebSocket server will be available at: ws://$(curl -s ifconfig.me):$PORT"
         node dist/websocket-server.js 

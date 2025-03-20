@@ -182,23 +182,30 @@ const AdminMapComponent = ({ points = [], teams = [], onPointClick, isEditable }
         return;
       }
 
+      // Get WebSocket URL from environment variable or fallback to localhost
+      // Note: Production should use wss:// protocol (secure WebSocket)
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
+      console.log(`AdminMap: Connecting to WebSocket at: ${wsUrl}`);
+      console.log(`AdminMap: Current environment: ${process.env.NODE_ENV}`);
+      
       try {
-        ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001');
+        ws = new WebSocket(wsUrl);
         
         ws.onopen = () => {
-          console.log('WebSocket connected');
+          console.log('AdminMap: WebSocket connected successfully');
           reconnectAttempts = 0; // Reset attempts on successful connection
         };
         
-        ws.onclose = () => {
-          console.log('WebSocket disconnected, attempting to reconnect...');
+        ws.onclose = (event) => {
+          console.log(`AdminMap: WebSocket disconnected with code: ${event.code}, reason: ${event.reason || 'No reason provided'}`);
+          console.log('AdminMap: Attempting to reconnect...');
           reconnectAttempts++;
           reconnectTimeout = setTimeout(connectWebSocket, 3000);
         };
         
         ws.onerror = (error) => {
-          console.log('WebSocket error, will attempt to reconnect');
-          // Don't try to reconnect immediately on error
+          console.error('AdminMap: WebSocket error:', error);
+          console.log('AdminMap: Will attempt to reconnect on close');
           // The onclose handler will handle reconnection
         };
         
@@ -206,14 +213,14 @@ const AdminMapComponent = ({ points = [], teams = [], onPointClick, isEditable }
           try {
             const data = JSON.parse(event.data);
             if (data.type === 'LOCATION_UPDATE') {
-              console.log('Location update received:', data);
+              console.log('AdminMap: Location update received:', data);
             }
           } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
+            console.error('AdminMap: Error parsing WebSocket message:', error);
           }
         };
       } catch (error) {
-        console.error('Error creating WebSocket connection:', error);
+        console.error('AdminMap: Error creating WebSocket connection:', error);
         reconnectAttempts++;
         reconnectTimeout = setTimeout(connectWebSocket, 3000);
       }
@@ -223,6 +230,7 @@ const AdminMapComponent = ({ points = [], teams = [], onPointClick, isEditable }
 
     return () => {
       if (ws) {
+        console.log('AdminMap: Closing WebSocket connection due to component unmount');
         ws.close();
       }
       if (reconnectTimeout) {

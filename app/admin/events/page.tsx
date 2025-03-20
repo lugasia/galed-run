@@ -204,17 +204,45 @@ export default function EventsPage() {
     fetchEvents();
 
     // Set up WebSocket connection for real-time updates
-    const ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001');
+    let ws: WebSocket | null = null;
     
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'NEW_EVENT') {
-        setEvents((prevEvents) => [data.event, ...prevEvents]);
-      }
-    };
-
+    try {
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
+      console.log('Events page: Connecting to WebSocket at:', wsUrl);
+      
+      ws = new WebSocket(wsUrl);
+      
+      ws.onopen = () => {
+        console.log('Events page: WebSocket connected successfully');
+      };
+      
+      ws.onclose = (event) => {
+        console.log(`Events page: WebSocket disconnected with code: ${event.code}, reason: ${event.reason || 'No reason provided'}`);
+      };
+      
+      ws.onerror = (error) => {
+        console.error('Events page: WebSocket error:', error);
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'NEW_EVENT') {
+            setEvents(prevEvents => [data.event, ...prevEvents]);
+          }
+        } catch (error) {
+          console.error('Events page: Error parsing WebSocket message:', error);
+        }
+      };
+    } catch (error) {
+      console.error('Events page: Error creating WebSocket connection:', error);
+    }
+    
     return () => {
-      ws.close();
+      if (ws) {
+        console.log('Events page: Closing WebSocket connection due to component unmount');
+        ws.close();
+      }
     };
   }, []);
 
