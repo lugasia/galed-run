@@ -1,9 +1,14 @@
 import React, { useEffect } from 'react';
 
-const QuestionComponent: React.FC = () => {
-  const isCorrectAnswer = true; // Replace with actual logic
-  const isPointVisitCompleted = true; // Replace with actual logic
+interface QuestionComponentProps {
+  isCorrectAnswer: boolean;
+  isPointVisitCompleted: boolean;
+}
 
+const QuestionComponent: React.FC<QuestionComponentProps> = ({ 
+  isCorrectAnswer = false, 
+  isPointVisitCompleted = false 
+}) => {
   useEffect(() => {
     // Add beforeunload event listener to warn before refresh
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -25,7 +30,13 @@ const QuestionComponent: React.FC = () => {
   }, [isCorrectAnswer, isPointVisitCompleted]);
 
   return (
-    // Rest of the component code
+    <div className="warning-container">
+      {isCorrectAnswer && !isPointVisitCompleted && (
+        <div className="warning-message">
+          שים לב: אם תרענן את הדף כעת, ייתכן שתצטרך לענות על השאלה שוב.
+        </div>
+      )}
+    </div>
   );
 };
 
