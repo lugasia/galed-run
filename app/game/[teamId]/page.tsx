@@ -123,7 +123,20 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   const [disabledOptions, setDisabledOptions] = useState<string[]>([]);
   const [gameCompleted, setGameCompleted] = useState(false);
   const [answerCorrectButNotCompleted, setAnswerCorrectButNotCompleted] = useState<boolean>(false);
+  const [gameCompletionReported, setGameCompletionReported] = useState<boolean>(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchingRef = useRef<boolean>(false);
+
+  // פונקציה לחילוץ מזהה הקבוצה מהפרמטרים
+  const getTeamId = () => {
+    return params.teamId;
+  };
+
+  // פונקציה לחישוב הזמן שחלף בין שני תאריכים במילישניות
+  const getElapsedTimeBetweenDates = (startDate: Date, endDate: Date): number => {
+    if (!startDate || !endDate) return 0;
+    return endDate.getTime() - startDate.getTime();
+  };
 
   useEffect(() => {
     fetchTeam();
@@ -224,8 +237,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
 
   // Separate effect to handle game completion
   useEffect(() => {
-    if (gameCompleted && finalTime !== null) {
-      console.log('Game completed effect triggered, finalTime:', finalTime);
+    if (gameCompleted && finalTime !== null && !gameCompletionReported) {
+      console.log('Game completed effect triggered, finalTime:', finalTime, 'reportingState:', gameCompletionReported);
       
       // Stop the timer if it's still running
       if (timerRef.current) {
@@ -238,6 +251,10 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       const teamId = team?.uniqueLink?.split('/').pop() || team?._id;
       if (teamId) {
         console.log('Saving completion time to server:', finalTime);
+        
+        // סמן שכבר דיווחנו על סיום המשחק כדי למנוע קריאה כפולה
+        setGameCompletionReported(true);
+        
         fetch(`/api/game/${teamId}/complete`, {
           method: 'POST',
           headers: {
@@ -255,10 +272,12 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           }
         }).catch(error => {
           console.error('Error saving completion time:', error);
+          // במקרה של שגיאה, נאפס את הדגל כדי לאפשר ניסיון נוסף
+          setGameCompletionReported(false);
         });
       }
     }
-  }, [gameCompleted, finalTime, team]);
+  }, [gameCompleted, finalTime, team, gameCompletionReported]);
 
   useEffect(() => {
     if (penaltyEndTime) {
@@ -331,11 +350,22 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
   }, [params.teamId, team, points, answerCorrectButNotCompleted, gameCompleted]);
 
   const fetchTeam = async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+    
     try {
-      console.log('Fetching team data...');
-      // נסה לקבל קבוצה לפי המזהה
-      const response = await fetch(`/api/game/${params.teamId}`, {
-        // Add cache control headers to prevent caching
+      const teamId = getTeamId();
+      console.log('Fetching team data for teamId:', teamId);
+      
+      if (!teamId) {
+        setMessage('לא סופק מזהה קבוצה. אנא בדוק את הקישור.');
+        setLoading(false);
+        fetchingRef.current = false;
+        return;
+      }
+      
+      const response = await fetch(`/api/game/${teamId}`, {
+        // Add cache control to ensure fresh data
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
@@ -344,70 +374,39 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       });
       
       if (!response.ok) {
-        console.error('Error response from server:', response.status, response.statusText);
-        
-        // נסה לקרוא את הודעת השגיאה מהשרת
         try {
           const errorData = await response.json();
-          console.error('Error data:', errorData);
           
-          // שמור את המידע הדיאגנוסטי
-          if (errorData.debug) {
-            console.log('Debug info:', errorData.debug);
-            window.debugInfo = errorData.debug;
-          }
-          
-          // אם לא נמצאה קבוצה, נסה לקבל קבוצה פעילה כלשהי
           if (response.status === 404) {
-            console.log('Team not found, trying to get any active team');
-            const activeTeamsResponse = await fetch('/api/teams/active', {
-              headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0'
-              }
-            });
-            
-            if (activeTeamsResponse.ok) {
-              const activeTeamsData = await activeTeamsResponse.json();
-              
-              if (activeTeamsData.teams && activeTeamsData.teams.length > 0) {
-                console.log('Found active teams:', activeTeamsData.teams);
-                
-                // השתמש בקבוצה הראשונה שנמצאה
-                const firstActiveTeam = activeTeamsData.teams[0];
-                console.log('Using first active team:', firstActiveTeam);
-                
-                // נסה לקבל את הקבוצה המלאה
-                const teamResponse = await fetch(`/api/game/${firstActiveTeam._id}`, {
-                  headers: {
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                  }
-                });
-                
-                if (teamResponse.ok) {
-                  const teamData = await teamResponse.json();
-                  if (teamData.team) {
-                    console.log('Successfully fetched active team');
-                    setTeam(teamData.team);
-                    processTeamData(teamData.team);
-                    setLoading(false);
-                    return;
-                  }
-                }
-              }
+            if (errorData?.debug?.teamFound === false) {
+              setMessage('קבוצה לא נמצאה. בדוק שהקישור שהזנת נכון.');
+            } else if (errorData?.debug?.hasRoute === false) {
+              setMessage('לא נמצא מסלול לקבוצה. אנא פנה למנהל המערכת.');
+            } else {
+              setMessage('משאב לא נמצא. בדוק את הקישור שהזנת.');
             }
+          } else if (response.status === 401 || response.status === 403) {
+            setMessage('אין לך הרשאה לצפות בדף זה. בדוק את הקישור או פנה למנהל המערכת.');
+          } else if (response.status >= 500) {
+            setMessage('שגיאת שרת. אנא נסה שוב עוד מספר דקות או פנה למנהל המערכת.');
+            // ניסיון מחדש אוטומטי עבור שגיאות שרת
+            setTimeout(() => {
+              console.log('Retrying after server error...');
+              fetchingRef.current = false;
+              fetchTeam();
+            }, 5000); // נסה שוב אחרי 5 שניות
+            return;
+          } else {
+            setMessage(errorData.message || 'קבוצה לא נמצאה. בדוק את הקישור שהזנת.');
           }
           
-          setMessage(errorData.message || 'קבוצה לא נמצאה. בדוק את הקישור שהזנת.');
         } catch (parseError) {
           console.error('Error parsing error response:', parseError);
           setMessage('קבוצה לא נמצאה. בדוק את הקישור שהזנת.');
         }
         
         setLoading(false);
+        fetchingRef.current = false;
         return;
       }
       
@@ -422,6 +421,7 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
         console.error('No team data in response');
         setMessage('קבוצה לא נמצאה. בדוק את הקישור שהזנת.');
         setLoading(false);
+        fetchingRef.current = false;
         return;
       }
       
@@ -430,14 +430,33 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       setLoading(false);
     } catch (error) {
       console.error('Error fetching team:', error);
-      setMessage('שגיאה בטעינת נתוני הקבוצה. נסה לרענן את העמוד.');
+      
+      // בדיקה אם השגיאה היא בעיית רשת
+      if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('network'))) {
+        setMessage('נראה שיש בעיית חיבור לאינטרנט. בדוק את החיבור שלך ונסה שוב.');
+        
+        // ניסיון מחדש אוטומטי עבור בעיות רשת
+        setTimeout(() => {
+          console.log('Retrying due to network error...');
+          fetchingRef.current = false;
+          fetchTeam();
+        }, 3000); // נסה שוב אחרי 3 שניות
+      } else {
+        setMessage('שגיאה בטעינת נתוני הקבוצה. נסה לרענן את העמוד או לפנות למנהל המערכת.');
+      }
+      
       setLoading(false);
+    } finally {
+      fetchingRef.current = false;
     }
   };
   
   // פונקציה לעיבוד נתוני הקבוצה
   const processTeamData = (teamData: any) => {
-    if (!teamData) return;
+    if (!teamData) {
+      console.error('processTeamData called with null or undefined data');
+      return;
+    }
 
     console.log('processTeamData debug:', {
       serverPointIndex: teamData.currentPointIndex,
@@ -447,12 +466,61 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       gameCompleted: teamData.gameCompleted,
     });
 
+    // בדיקה שיש לנו נקודות
+    if (!points || points.length === 0) {
+      if (teamData.currentRoute?.points) {
+        setPoints(teamData.currentRoute.points);
+      } else {
+        console.error('No points available in team data');
+        setMessage('אין נקודות במסלול. נא לפנות למנהל המערכת.');
+        return;
+      }
+    }
+
     // Use local state if it's ahead of server state (to prevent rollback)
     const localIndex = team?.currentPointIndex || 0;
     const serverIndex = teamData.currentPointIndex || 0;
     
+    // אם המשחק כבר הסתיים, השתמש בנתונים מהשרת
+    if (teamData.gameCompleted) {
+      setGameCompleted(true);
+      // אם המשחק כבר הסתיים לפי נתוני השרת, סימן שהדיווח כבר נעשה
+      setGameCompletionReported(true);
+      
+      const finalTime = getElapsedTimeBetweenDates(
+        new Date(teamData.startTime),
+        new Date(teamData.finishTime)
+      );
+      setFinalTime(finalTime);
+      
+      // הצג הודעת סיום משחק
+      setMessage(`כל הכבוד! סיימתם את המשחק! הזמן הסופי שלכם: ${formatTime(finalTime)}`);
+      
+      // עצור את הטיימר
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+    
+    // בדיקה עבור מצב של עונשין
+    if (teamData.penaltyEndTime) {
+      const penaltyEnd = new Date(teamData.penaltyEndTime);
+      if (penaltyEnd > new Date()) {
+        setPenaltyEndTime(penaltyEnd);
+        // שמור על הצגת הודעת עונשין מתאימה
+        const timeLeftMs = penaltyEnd.getTime() - Date.now();
+        const timeLeftSec = Math.ceil(timeLeftMs / 1000);
+        setMessage(`יש לך עונשין! עליך להמתין ${timeLeftSec} שניות לקבלת הרמז הבא.`);
+      } else {
+        // העונשין הסתיים
+        setPenaltyEndTime(undefined);
+      }
+    }
+
     // If we have local state and it's ahead of the server, use it
-    const useLocalIndex = localIndex > serverIndex;
+    // אבל רק אם המשחק עדיין לא הסתיים
+    const useLocalIndex = !teamData.gameCompleted && localIndex > serverIndex;
     
     // Final point index to use, prioritizing local progress
     const finalPointIndex = useLocalIndex ? localIndex : serverIndex;
@@ -461,7 +529,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       localIndex,
       serverIndex,
       useLocalIndex,
-      finalPointIndex
+      finalPointIndex,
+      gameCompleted: teamData.gameCompleted
     });
 
     // Update team with the correct point index
@@ -470,20 +539,24 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       currentPointIndex: finalPointIndex,
     };
 
-    // Set points if available from server
-    if (teamData?.currentRoute?.points) {
-      setPoints(teamData.currentRoute.points);
-    }
+    // הגדר את הקבוצה המעודכנת
+    setTeam(updatedTeam);
 
     // Get current point after potential index update
     const currentPoint = points?.[finalPointIndex];
-    const hasAnsweredCorrectly = teamData.visitedPoints?.includes(currentPoint?._id);
+    if (!currentPoint) {
+      console.error('Current point not found at index:', finalPointIndex);
+      return;
+    }
+    
+    const hasAnsweredCorrectly = teamData.visitedPoints?.includes(currentPoint._id);
     
     // Show question in these cases:
     // 1. Not answered correctly yet
     // 2. Not in penalty
     // 3. Not already showing question
-    if (!hasAnsweredCorrectly && !teamData.penaltyEndTime && !showQuestion) {
+    // 4. Game is not completed
+    if (!hasAnsweredCorrectly && !teamData.penaltyEndTime && !showQuestion && !teamData.gameCompleted) {
       setShowQuestion(true);
     }
     
@@ -494,28 +567,12 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
       }
     }
     
-    // Check for penalties
-    if (teamData?.penaltyEndTime) {
-      const penaltyEnd = new Date(teamData.penaltyEndTime);
-      if (penaltyEnd > new Date()) {
-        setPenaltyEndTime(penaltyEnd);
-      }
-    }
-
-    // Update team state
-    setTeam(updatedTeam);
-
     // Get completed points based on visitedPoints
     if (points) {
       const completed = points.filter(
-        (point: Point) => updatedTeam.visitedPoints?.includes(point._id)
+        (point: Point) => teamData.visitedPoints?.includes(point._id)
       );
       setCompletedPoints(completed);
-    }
-
-    // Check if a point was just completed
-    if (team && updatedTeam.visitedPoints?.length > team.visitedPoints?.length) {
-      handlePointCompleted();
     }
   };
 
@@ -708,19 +765,8 @@ export default function GamePage({ params }: { params: { teamId: string } }) {
           timerRef.current = null;
         }
 
-        // Save completion time to server
-        const teamId = team.uniqueLink.split('/').pop() || team._id;
-        await fetch(`/api/game/${teamId}/complete`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            completionTime: capturedTime,
-            finalTime: capturedTime,
-            completedAt: new Date().toISOString()
-          }),
-        });
+        // אין צורך לקרוא כאן ל-API - האפקט יטפל בזה
+        // כך נמנע כפילות
         return;
       }
 
