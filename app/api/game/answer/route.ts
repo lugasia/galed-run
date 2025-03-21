@@ -388,7 +388,7 @@ export async function POST(request: Request) {
 
     // עדכון האינדקס לנקודה הבאה אחרי הנקודה האחרונה שהושלמה
     const lastCompletedPointIndex = updateResult.currentRoute.points.findIndex(
-      point => point._id.toString() === updateResult.visitedPoints[updateResult.visitedPoints.length - 1]
+      (point: { _id: { toString: () => string } }) => point._id.toString() === updateResult.visitedPoints[updateResult.visitedPoints.length - 1]
     );
     
     if (lastCompletedPointIndex !== -1 && lastCompletedPointIndex + 1 < updateResult.currentRoute.points.length) {
