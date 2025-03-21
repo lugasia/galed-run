@@ -45,63 +45,48 @@ import { cookies } from 'next/headers';
 
 // const Point = (mongoose.models.Point as Model<IPoint>) || mongoose.model<IPoint>('Point', PointSchema);
 
-export async function GET(request: Request) {
-  // Get API key from header or query parameter
-  const apiKey = request.headers.get('x-api-key');
-  const url = new URL(request.url);
-  const queryApiKey = url.searchParams.get('apiKey');
-  
-  if ((!apiKey || apiKey !== process.env.API_SECRET) && 
-      (!queryApiKey || queryApiKey !== process.env.API_SECRET)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function GET() {
   try {
     await dbConnect();
-    
-    // Make sure Point model is registered
-    if (!mongoose.models.Point) {
-      mongoose.model('Point', PointSchema);
-    }
-    
-    // Make sure Route model is registered
-    if (!mongoose.models.Route) {
-      mongoose.model('Route', RouteSchema);
-    }
-
     const points = await Point.find({});
     return NextResponse.json(points);
   } catch (error) {
-    console.error('Error fetching points:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch points' },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: Request) {
-  // Get API key from header or query parameter
-  const apiKey = request.headers.get('x-api-key');
-  const url = new URL(request.url);
-  const queryApiKey = url.searchParams.get('apiKey');
-  
-  if ((!apiKey || apiKey !== process.env.API_SECRET) && 
-      (!queryApiKey || queryApiKey !== process.env.API_SECRET)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
     await dbConnect();
+    const data = await request.json();
     
-    // Make sure Point model is registered
-    if (!mongoose.models.Point) {
-      mongoose.model('Point', PointSchema);
+    // Validate required fields
+    if (!data.name || !data.question || !data.qrCode) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
     }
 
-    const data = await request.json();
+    // Check if QR code is unique
+    const existingPoint = await Point.findOne({ qrCode: data.qrCode });
+    if (existingPoint) {
+      return NextResponse.json(
+        { error: 'QR code already exists' },
+        { status: 400 }
+      );
+    }
+
     const point = await Point.create(data);
     return NextResponse.json(point, { status: 201 });
   } catch (error) {
-    console.error('Error creating point:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to create point' },
+      { status: 500 }
+    );
   }
 }
 
