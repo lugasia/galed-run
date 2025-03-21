@@ -2,9 +2,18 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { FaMapMarkerAlt, FaRoute, FaUsers, FaCog, FaFileImport } from 'react-icons/fa';
 import Link from 'next/link';
 
-const AdminCard = ({ title, description, icon, href, delay = 0 }) => (
+interface AdminCardProps {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  href: string;
+  delay?: number;
+}
+
+const AdminCard = ({ title, description, icon, href, delay = 0 }: AdminCardProps) => (
   <Link href={href}>
     <motion.div
       initial={{ opacity: 0, y: 20 }}
