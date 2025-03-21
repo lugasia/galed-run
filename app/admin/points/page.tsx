@@ -33,7 +33,7 @@ interface PointFormData extends Omit<Point, '_id' | 'id'> {
     correctAnswer: string;
     image?: string;
   };
-  images?: {
+  images: {
     zoomIn: string;
     zoomOut: string;
   };
